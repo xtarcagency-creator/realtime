@@ -19,7 +19,14 @@
 }
 
 .brand-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
+}
+
+.logo-mark {
+  flex-shrink: 0;
 }
 
 .brand {
@@ -53,15 +60,20 @@
   gap: 16px;
   padding: 16px;
   align-items: flex-start;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
 .stage {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
   min-width: 320px;
+  max-width: 100%;
 }
 
 .stage-toolbar {
+  width: 100%;
   display: flex;
   justify-content: flex-end;
   align-items: center;

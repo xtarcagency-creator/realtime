@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import CameraStage from './components/CameraStage'
 import Dashboard from './components/Dashboard'
+import Logo from './components/Logo'
 import type { ActivityEvent, DetectionQuality, Source, TrackedPerson, Zone } from './lib/types'
 import { MIN_ZONE_POINTS } from './lib/zones'
 import './App.css'
@@ -92,8 +93,11 @@ function App() {
       <header className="app-header">
         <div className="header-row">
           <div className="brand-block">
-            <div className="brand">Realtime Human Activity Analyser</div>
-            <p className="tagline">Live in-browser pose tracking &amp; zone-based behavior detection.</p>
+            <Logo />
+            <div>
+              <div className="brand">Realtime Human Activity Analyser</div>
+              <p className="tagline">Live in-browser pose tracking &amp; zone-based behavior detection.</p>
+            </div>
           </div>
           <div className="source-bar">
             <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
