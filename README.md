@@ -14,14 +14,20 @@ no video leaves the device.
 - **Activity classification** — per person, per frame: `standing`,
   `sitting`, `walking`, `bending`, `reaching`. Heuristic, derived from joint
   geometry and centroid movement (not a trained action-recognition model).
-- **Zones & dwell time** — draw a rectangle over the video to mark a zone.
-  The app tracks how long each tracked person dwells inside it; dwelling
-  past a threshold raises a `loitering` state and logs a timestamped event.
+- **Zones & dwell time** — draw a polygon over the video to mark a zone
+  (any shape, not just rectangles). The app tracks how long each tracked
+  person dwells inside it; dwelling past a threshold raises a `loitering`
+  state, logs a timestamped event, and flashes the video border.
 - **Camera or uploaded video** — analyse a live webcam feed or a video file.
+- **Detection quality control** — Fast / Balanced / High, trading pose
+  model input resolution for FPS (useful on slower hardware or for
+  catching smaller/farther people).
+- **Frame capture** — save the current canvas (video + overlay) as a PNG.
 - **Live dashboard** — person count, FPS, per-person activity, zone list,
   and a scrolling event log.
 - **Stop/start control** — release the camera or pause the video without
   reloading the page.
+- Zones persist across reloads (localStorage).
 
 ## Running locally
 
@@ -33,12 +39,16 @@ npm run dev
 Open the printed local URL in a browser with camera access (Chrome/Edge
 recommended for WebGL performance).
 
-- Click **Draw zone**, then drag on the video to mark a zone. Rename it
-  inline in the sidebar.
-- Stay in a zone for 6+ seconds to trigger a `loitering` event in the log.
+- Click **Draw zone**, then click to place each corner of a zone (3+
+  points); click the first point again, or hit **Finish zone**, to close
+  it. Rename or delete zones inline in the sidebar.
+- Stay in a zone for 6+ seconds to trigger a `loitering` event — the log
+  entry and a red flash on the video.
 - Raise a hand above shoulder height to see `reaching` detected.
 - Use **Upload video** to run detection against a video file instead of the
   camera.
+- Use **Capture frame** to download the current view (video + skeleton +
+  zones) as a PNG.
 
 ## Building & deploying
 
@@ -68,15 +78,18 @@ from within an iframe, and the embedding page must be served over HTTPS
 ## Architecture
 
 - `src/lib/pose.ts` — loads the MoveNet MultiPose detector (tracking
-  enabled) via TensorFlow.js.
+  enabled), keyed by `DetectionQuality` (adjusts `multiPoseMaxDimension`);
+  disposes the old model when quality changes.
 - `src/lib/activity.ts` — heuristic activity classifier + shared centroid
   helper.
 - `src/lib/coverMap.ts` — maps arbitrary camera/video resolutions onto the
   fixed 16:9 canvas (object-fit: cover style crop).
-- `src/lib/zones.ts` — zone/dwell-time helpers.
-- `src/components/CameraStage.tsx` — capture, detection loop, drawing, zone
-  drawing UI.
-- `src/components/Dashboard.tsx` — live stats sidebar.
+- `src/lib/zones.ts` — polygon point-in-zone test, zone centroid, dwell
+  constants.
+- `src/components/CameraStage.tsx` — capture, detection loop, drawing,
+  polygon zone-drawing UI, frame capture, loitering flash.
+- `src/components/Dashboard.tsx` — live stats sidebar, detection quality
+  control, zone list.
 
 ## Limitations
 

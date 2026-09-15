@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDetector } from '../lib/pose'
+import { getDetector, type Detector } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
-import { pointInZone, LOITER_THRESHOLD_SEC } from '../lib/zones'
+import { pointInZone, zoneCentroid, LOITER_THRESHOLD_SEC, MIN_ZONE_POINTS, CLOSE_POINT_RADIUS_PX } from '../lib/zones'
 import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
-import type { ActivityEvent, Point, Source, TrackedPerson, Zone } from '../lib/types'
+import type { ActivityEvent, DetectionQuality, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
 const CANVAS_W = 1920
 const CANVAS_H = 1080
@@ -43,17 +43,30 @@ interface Props {
   onEvent: (event: ActivityEvent) => void
   onFps: (fps: number) => void
   drawMode: boolean
+  quality: DetectionQuality
+  alertPulse: number
 }
 
-export default function CameraStage({ source, zones, onZonesChange, onPeopleUpdate, onEvent, onFps, drawMode }: Props) {
+export default function CameraStage({
+  source,
+  zones,
+  onZonesChange,
+  onPeopleUpdate,
+  onEvent,
+  onFps,
+  drawMode,
+  quality,
+  alertPulse,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const peopleRef = useRef<Map<number, TrackedPerson>>(new Map())
   const zonesRef = useRef(zones)
-  const dragRef = useRef<{ x: number; y: number } | null>(null)
-  const [dragRect, setDragRect] = useState<Zone | null>(null)
+  const detectorRef = useRef<Detector | null>(null)
   const [status, setStatus] = useState('Starting…')
   const [running, setRunning] = useState(true)
+  const [draftPoints, setDraftPoints] = useState<Point[]>([])
+  const [cursorPos, setCursorPos] = useState<Point | null>(null)
 
   useEffect(() => {
     zonesRef.current = zones
@@ -63,6 +76,27 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
   useEffect(() => {
     setRunning(true)
   }, [source])
+
+  // Load (or swap) the pose model independently of the camera/video pipeline,
+  // so changing quality doesn't interrupt the live feed.
+  useEffect(() => {
+    let cancelled = false
+    detectorRef.current = null
+    getDetector(quality).then((detector) => {
+      if (!cancelled) detectorRef.current = detector
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [quality])
+
+  // Leaving draw mode (or switching source) clears any in-progress zone.
+  useEffect(() => {
+    if (!drawMode) {
+      setDraftPoints([])
+      setCursorPos(null)
+    }
+  }, [drawMode])
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -116,13 +150,16 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
       const ctx = canvas.getContext('2d')!
       const cover = computeCoverTransform(video.videoWidth, video.videoHeight, CANVAS_W, CANVAS_H)
 
-      setStatus('Loading pose model…')
-      const detector = await getDetector()
       setStatus('')
 
       const loop = async () => {
         if (stopped) return
         if (video.paused || video.ended) {
+          raf = requestAnimationFrame(loop)
+          return
+        }
+        const detector = detectorRef.current
+        if (!detector) {
           raf = requestAnimationFrame(loop)
           return
         }
@@ -233,15 +270,23 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
         // draw zones
         for (const zone of zonesRef.current) {
+          if (zone.points.length < MIN_ZONE_POINTS) continue
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
-          ctx.strokeStyle = occupied ? '#dc2626' : '#2563eb'
+          const zoneColor = occupied ? '#dc2626' : '#2563eb'
+          ctx.strokeStyle = zoneColor
           ctx.fillStyle = occupied ? 'rgba(220,38,38,0.1)' : 'rgba(37,99,235,0.08)'
           ctx.lineWidth = 3 * DRAW_SCALE
-          ctx.strokeRect(zone.x, zone.y, zone.w, zone.h)
-          ctx.fillRect(zone.x, zone.y, zone.w, zone.h)
-          ctx.fillStyle = occupied ? '#dc2626' : '#2563eb'
+          ctx.beginPath()
+          zone.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+          ctx.closePath()
+          ctx.fill()
+          ctx.stroke()
+
+          const c = zoneCentroid(zone)
           ctx.font = `bold ${18 * DRAW_SCALE}px system-ui, sans-serif`
-          ctx.fillText(zone.label, zone.x + 8 * DRAW_SCALE, zone.y + 24 * DRAW_SCALE)
+          const labelW = ctx.measureText(zone.label).width
+          ctx.fillStyle = zoneColor
+          ctx.fillText(zone.label, c.x - labelW / 2, c.y)
         }
 
         ctx.restore()
@@ -279,41 +324,67 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }
   }
 
-  function handleMouseDown(e: React.MouseEvent) {
+  function finishZone(points: Point[]) {
+    if (points.length < MIN_ZONE_POINTS) return
+    const n = zones.length + 1
+    onZonesChange([...zones, { id: `zone-${Date.now()}`, label: `Zone ${n}`, points }])
+    setDraftPoints([])
+    setCursorPos(null)
+  }
+
+  function handleCanvasClick(e: React.MouseEvent) {
     if (!drawMode) return
-    dragRef.current = toCanvasCoords(e)
-  }
-
-  function handleMouseMove(e: React.MouseEvent) {
-    if (!drawMode || !dragRef.current) return
     const p = toCanvasCoords(e)
-    const start = dragRef.current
-    setDragRect({
-      id: 'draft',
-      label: 'New zone',
-      x: Math.min(start.x, p.x),
-      y: Math.min(start.y, p.y),
-      w: Math.abs(p.x - start.x),
-      h: Math.abs(p.y - start.y),
-    })
+    if (draftPoints.length >= MIN_ZONE_POINTS) {
+      const first = draftPoints[0]
+      const dist = Math.hypot(p.x - first.x, p.y - first.y)
+      if (dist < CLOSE_POINT_RADIUS_PX * DRAW_SCALE) {
+        finishZone(draftPoints)
+        return
+      }
+    }
+    setDraftPoints((prev) => [...prev, p])
   }
 
-  function handleMouseUp() {
-    if (!drawMode || !dragRef.current || !dragRect) {
-      dragRef.current = null
-      return
-    }
-    if (dragRect.w > 20 && dragRect.h > 20) {
-      const n = zones.length + 1
-      onZonesChange([...zones, { ...dragRect, id: `zone-${Date.now()}`, label: `Zone ${n}` }])
-    }
-    dragRef.current = null
-    setDragRect(null)
+  function handleCanvasMouseMove(e: React.MouseEvent) {
+    if (!drawMode) return
+    setCursorPos(toCanvasCoords(e))
   }
+
+  function handleCapture() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `activity-snapshot-${new Date().toISOString().replace(/[:.]/g, '-')}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }, 'image/png')
+  }
+
+  const draftLine = cursorPos ? [...draftPoints, cursorPos] : draftPoints
 
   return (
     <div className="stage">
       <div className="stage-toolbar">
+        {drawMode && draftPoints.length >= MIN_ZONE_POINTS && (
+          <button className="btn" onClick={() => finishZone(draftPoints)}>
+            Finish zone
+          </button>
+        )}
+        {drawMode && draftPoints.length > 0 && (
+          <button className="btn" onClick={() => setDraftPoints([])}>
+            Cancel zone
+          </button>
+        )}
+        <button className="btn" onClick={handleCapture}>
+          Capture frame
+        </button>
         <button className="btn" onClick={() => setRunning((r) => !r)}>
           {running ? 'Stop feed' : 'Start feed'}
         </button>
@@ -327,22 +398,25 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
       <div className="stage-frame">
         <canvas
           ref={canvasRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onClick={handleCanvasClick}
+          onMouseMove={handleCanvasMouseMove}
           className={drawMode ? 'draw-cursor' : ''}
         />
-        {dragRect && canvasRef.current && (
-          <div
-            className="drag-preview"
-            style={{
-              left: `${(dragRect.x / canvasRef.current.width) * 100}%`,
-              top: `${(dragRect.y / canvasRef.current.height) * 100}%`,
-              width: `${(dragRect.w / canvasRef.current.width) * 100}%`,
-              height: `${(dragRect.h / canvasRef.current.height) * 100}%`,
-            }}
-          />
+        {drawMode && draftPoints.length > 0 && (
+          <svg className="zone-draft-overlay" viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} preserveAspectRatio="none">
+            <polyline
+              points={draftLine.map((p) => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth={3 * DRAW_SCALE}
+              strokeDasharray={`${8 * DRAW_SCALE} ${6 * DRAW_SCALE}`}
+            />
+            {draftPoints.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#16a34a' : '#2563eb'} />
+            ))}
+          </svg>
         )}
+        {alertPulse > 0 && <div key={alertPulse} className="alert-flash" />}
         {status && <div className="stage-status">{status}</div>}
       </div>
     </div>

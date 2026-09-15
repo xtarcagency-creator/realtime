@@ -1,4 +1,10 @@
-import type { ActivityEvent, TrackedPerson, Zone } from '../lib/types'
+import type { ActivityEvent, DetectionQuality, TrackedPerson, Zone } from '../lib/types'
+
+const QUALITY_OPTIONS: { value: DetectionQuality; label: string }[] = [
+  { value: 'fast', label: 'Fast' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'high', label: 'High' },
+]
 
 interface Props {
   people: TrackedPerson[]
@@ -10,6 +16,8 @@ interface Props {
   onClearZones: () => void
   onRenameZone: (id: string, label: string) => void
   onDeleteZone: (id: string) => void
+  quality: DetectionQuality
+  onQualityChange: (quality: DetectionQuality) => void
 }
 
 export default function Dashboard({
@@ -22,6 +30,8 @@ export default function Dashboard({
   onClearZones,
   onRenameZone,
   onDeleteZone,
+  quality,
+  onQualityChange,
 }: Props) {
   return (
     <aside className="dashboard">
@@ -40,6 +50,24 @@ export default function Dashboard({
       </div>
 
       <div className="panel">
+        <div className="panel-title">Detection quality</div>
+        <div className="panel-actions">
+          {QUALITY_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={quality === opt.value ? 'btn active' : 'btn'}
+              onClick={() => onQualityChange(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="empty" style={{ marginTop: 8 }}>
+          Higher quality catches smaller/farther people better, at a lower FPS.
+        </div>
+      </div>
+
+      <div className="panel">
         <div className="panel-title-row">
           <div className="panel-title">Zones</div>
           <div className="panel-actions">
@@ -51,7 +79,13 @@ export default function Dashboard({
             </button>
           </div>
         </div>
-        {!zones.length && <div className="empty">Drag on the camera view to mark a shelf/aisle zone.</div>}
+        {drawMode && (
+          <div className="empty" style={{ marginBottom: 8 }}>
+            Click to place each corner (3+), then click the first point again — or use "Finish zone" above the
+            video — to close it.
+          </div>
+        )}
+        {!zones.length && !drawMode && <div className="empty">Draw a zone to mark a shelf/aisle.</div>}
         <ul className="zone-list">
           {zones.map((z) => (
             <li key={z.id} className="zone-row">

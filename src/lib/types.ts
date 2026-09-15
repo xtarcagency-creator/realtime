@@ -6,10 +6,7 @@ export interface Point {
 export interface Zone {
   id: string
   label: string
-  x: number
-  y: number
-  w: number
-  h: number
+  points: Point[]
 }
 
 export type ActivityLabel =
@@ -39,3 +36,5 @@ export interface ActivityEvent {
 }
 
 export type Source = { kind: 'camera' } | { kind: 'upload'; file: File }
+
+export type DetectionQuality = 'fast' | 'balanced' | 'high'

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import CameraStage from './components/CameraStage'
 import Dashboard from './components/Dashboard'
-import type { ActivityEvent, Source, TrackedPerson, Zone } from './lib/types'
+import type { ActivityEvent, DetectionQuality, Source, TrackedPerson, Zone } from './lib/types'
+import { MIN_ZONE_POINTS } from './lib/zones'
 import './App.css'
 
 const MAX_EVENTS = 50
@@ -10,7 +11,10 @@ const ZONES_STORAGE_KEY = 'realtime-activity-analyser.zones'
 function loadStoredZones(): Zone[] {
   try {
     const raw = localStorage.getItem(ZONES_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Zone[]) : []
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as Zone[]
+    // Drop anything saved before the rect->polygon migration.
+    return Array.isArray(parsed) ? parsed.filter((z) => Array.isArray(z.points) && z.points.length >= MIN_ZONE_POINTS) : []
   } catch {
     return []
   }
@@ -24,6 +28,8 @@ function App() {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [fps, setFps] = useState(0)
   const [drawMode, setDrawMode] = useState(false)
+  const [quality, setQuality] = useState<DetectionQuality>('balanced')
+  const [alertPulse, setAlertPulse] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -36,6 +42,7 @@ function App() {
 
   function handleEvent(event: ActivityEvent) {
     setEvents((prev) => [event, ...prev].slice(0, MAX_EVENTS))
+    if (event.level === 'warning') setAlertPulse((n) => n + 1)
   }
 
   function renameZone(id: string, label: string) {
@@ -101,6 +108,8 @@ function App() {
           onEvent={handleEvent}
           onFps={setFps}
           drawMode={drawMode}
+          quality={quality}
+          alertPulse={alertPulse}
         />
         <Dashboard
           people={people}
@@ -112,6 +121,8 @@ function App() {
           onClearZones={() => setZones([])}
           onRenameZone={renameZone}
           onDeleteZone={deleteZone}
+          quality={quality}
+          onQualityChange={setQuality}
         />
       </main>
     </div>
