@@ -31,6 +31,7 @@ function App() {
   const [quality, setQuality] = useState<DetectionQuality>('balanced')
   const [alertPulse, setAlertPulse] = useState(0)
   const [loiterThresholdSec, setLoiterThresholdSec] = useState(DEFAULT_LOITER_THRESHOLD_SEC)
+  const [modelLoading, setModelLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -133,6 +134,7 @@ function App() {
           quality={quality}
           alertPulse={alertPulse}
           loiterThresholdSec={loiterThresholdSec}
+          onModelLoadingChange={setModelLoading}
         />
         <Dashboard
           people={people}
@@ -149,6 +151,7 @@ function App() {
           onExportEvents={exportEventsCsv}
           loiterThresholdSec={loiterThresholdSec}
           onLoiterThresholdChange={setLoiterThresholdSec}
+          modelLoading={modelLoading}
         />
       </main>
     </div>

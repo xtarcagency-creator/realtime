@@ -1,19 +1,30 @@
 :root {
-  --bg: #fafafa;
+  --bg: #f6f6f8;
   --panel: #ffffff;
-  --panel-2: #f4f4f5;
-  --border: #e4e4e7;
+  --panel-2: #f4f4f6;
+  --border: #e5e5ea;
+  --border-strong: #d4d4db;
   --text: #3f3f46;
   --text-h: #18181b;
   --muted: #71717a;
   --accent: #2563eb;
+  --accent-soft: #eff4ff;
   --warn: #dc2626;
+  --warn-soft: #fef2f2;
+  --amber: #d97706;
+  --amber-soft: #fffbeb;
+
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.04);
+  --shadow-md: 0 2px 8px rgba(24, 24, 27, 0.06), 0 1px 2px rgba(24, 24, 27, 0.04);
+  --radius: 10px;
+  --radius-sm: 7px;
 
   font: 14px/1.5 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -27,4 +38,26 @@ body {
 
 button {
   font: inherit;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* thin, unobtrusive scrollbars for the event log / narrow lists */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }

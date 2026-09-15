@@ -31,8 +31,8 @@ function getSession(): Promise<ort.InferenceSession> {
 }
 
 /** Preload the model so the first detection call isn't slowed by the fetch/compile. */
-export function preloadYoloModel() {
-  void getSession()
+export function preloadYoloModel(): Promise<ort.InferenceSession> {
+  return getSession()
 }
 
 interface Letterbox {

@@ -1,3 +1,4 @@
+import { ACTIVITY_COLORS } from '../lib/activityColors'
 import type { ActivityEvent, DetectionQuality, TrackedPerson, Zone } from '../lib/types'
 
 const QUALITY_OPTIONS: { value: DetectionQuality; label: string }[] = [
@@ -21,6 +22,7 @@ interface Props {
   onExportEvents: () => void
   loiterThresholdSec: number
   onLoiterThresholdChange: (sec: number) => void
+  modelLoading: boolean
 }
 
 export default function Dashboard({
@@ -38,6 +40,7 @@ export default function Dashboard({
   onExportEvents,
   loiterThresholdSec,
   onLoiterThresholdChange,
+  modelLoading,
 }: Props) {
   return (
     <aside className="dashboard">
@@ -56,13 +59,22 @@ export default function Dashboard({
       </div>
 
       <div className="panel">
-        <div className="panel-title">Detection quality</div>
+        <div className="panel-title-row">
+          <div className="panel-title">Detection quality</div>
+          {modelLoading && (
+            <span className="loading-badge">
+              <span className="spinner" />
+              Loading model…
+            </span>
+          )}
+        </div>
         <div className="panel-actions">
           {QUALITY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               className={quality === opt.value ? 'btn active' : 'btn'}
               onClick={() => onQualityChange(opt.value)}
+              disabled={modelLoading && quality !== opt.value}
             >
               {opt.label}
             </button>
@@ -71,7 +83,7 @@ export default function Dashboard({
         <div className="empty" style={{ marginTop: 8 }}>
           Fast/Balanced scan the whole frame at once. High switches to a per-person pipeline (detect each person,
           then a sharper pose model on just their crop) — much better for small, close, or overlapping people
-          (e.g. CCTV footage), at a real FPS cost.
+          (e.g. CCTV footage), at a real FPS cost. First use of High downloads the model (~40MB), cached after.
         </div>
       </div>
 
@@ -141,6 +153,7 @@ export default function Dashboard({
         <ul className="people-list">
           {people.map((p) => (
             <li key={p.id} className={`activity-${p.activity}`}>
+              <span className="activity-dot" style={{ background: ACTIVITY_COLORS[p.activity] }} />
               <span className="pill">#{p.id}</span>
               <span className="activity-label">{p.activity}</span>
             </li>
@@ -159,8 +172,11 @@ export default function Dashboard({
         <ul className="event-list">
           {events.map((e) => (
             <li key={e.id} className={e.level}>
-              <span className="event-time">{new Date(e.timestamp).toLocaleTimeString()}</span>
-              <span>{e.message}</span>
+              <span className={`event-dot ${e.level}`} />
+              <div className="event-body">
+                <span className="event-time">{new Date(e.timestamp).toLocaleTimeString()}</span>
+                <span>{e.message}</span>
+              </div>
             </li>
           ))}
         </ul>

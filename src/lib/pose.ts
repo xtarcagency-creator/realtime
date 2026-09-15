@@ -65,13 +65,12 @@ export function resetTracking() {
   resetTopDownTracker()
 }
 
-/** Start loading a quality tier's models ahead of the first frame that needs them. */
-export function preloadModels(quality: DetectionQuality) {
+/** Start loading a quality tier's models ahead of the first frame that needs them; resolves once ready. */
+export function preloadModels(quality: DetectionQuality): Promise<void> {
   if (quality === 'high') {
-    preloadTopDownModels()
-  } else {
-    void getBottomUpDetector(quality)
+    return preloadTopDownModels()
   }
+  return getBottomUpDetector(quality).then(() => undefined)
 }
 
 export function keypoint(pose: Pose, name: string) {

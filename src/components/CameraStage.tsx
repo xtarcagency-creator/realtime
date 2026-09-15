@@ -11,6 +11,7 @@ import {
   CLOSE_POINT_RADIUS_PX,
 } from '../lib/zones'
 import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
+import { ACTIVITY_COLORS } from '../lib/activityColors'
 import type { ActivityEvent, DetectionQuality, OverlayMode, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
 const CANVAS_W = 1920
@@ -34,16 +35,6 @@ const SKELETON_EDGES: [string, string][] = [
   ['right_knee', 'right_ankle'],
 ]
 
-const ACTIVITY_COLORS: Record<string, string> = {
-  standing: '#64748b',
-  sitting: '#0d9488',
-  walking: '#2563eb',
-  bending: '#b45309',
-  reaching: '#7c3aed',
-  lingering: '#d97706',
-  loitering: '#dc2626',
-}
-
 interface Props {
   source: Source
   zones: Zone[]
@@ -55,6 +46,7 @@ interface Props {
   quality: DetectionQuality
   alertPulse: number
   loiterThresholdSec: number
+  onModelLoadingChange: (loading: boolean) => void
 }
 
 export default function CameraStage({
@@ -68,6 +60,7 @@ export default function CameraStage({
   quality,
   alertPulse,
   loiterThresholdSec,
+  onModelLoadingChange,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -95,7 +88,15 @@ export default function CameraStage({
 
   useEffect(() => {
     qualityRef.current = quality
-    preloadModels(quality)
+    let cancelled = false
+    onModelLoadingChange(true)
+    preloadModels(quality).finally(() => {
+      if (!cancelled) onModelLoadingChange(false)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quality])
 
   useEffect(() => {
@@ -530,7 +531,12 @@ export default function CameraStage({
           </svg>
         )}
         {alertPulse > 0 && <div key={alertPulse} className="alert-flash" />}
-        {status && <div className="stage-status">{status}</div>}
+        {status && (
+          <div className="stage-status">
+            {status.endsWith('…') && <span className="spinner spinner-light" />}
+            {status}
+          </div>
+        )}
       </div>
       {source.kind === 'upload' && running && (
         <div className="video-scrubber">

@@ -65,10 +65,8 @@ export function resetTopDownTracker() {
 }
 
 /** Warm all three models (YOLO, Thunder, MultiPose-proposal) so switching to High doesn't stall the first frame. */
-export function preloadTopDownModels() {
-  preloadYoloModel()
-  void getSinglePoseDetector()
-  void getProposalDetector()
+export function preloadTopDownModels(): Promise<void> {
+  return Promise.all([preloadYoloModel(), getSinglePoseDetector(), getProposalDetector()]).then(() => undefined)
 }
 
 function iou(a: BoxProposal, b: BoxProposal): number {
