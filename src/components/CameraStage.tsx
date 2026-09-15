@@ -3,7 +3,7 @@ import { getDetector, type Detector } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import { pointInZone, zoneCentroid, LOITER_THRESHOLD_SEC, MIN_ZONE_POINTS, CLOSE_POINT_RADIUS_PX } from '../lib/zones'
 import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
-import type { ActivityEvent, DetectionQuality, Point, Source, TrackedPerson, Zone } from '../lib/types'
+import type { ActivityEvent, DetectionQuality, OverlayMode, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
 const CANVAS_W = 1920
 const CANVAS_H = 1080
@@ -63,14 +63,20 @@ export default function CameraStage({
   const peopleRef = useRef<Map<number, TrackedPerson>>(new Map())
   const zonesRef = useRef(zones)
   const detectorRef = useRef<Detector | null>(null)
+  const overlayModeRef = useRef<OverlayMode>('full')
   const [status, setStatus] = useState('Starting…')
   const [running, setRunning] = useState(true)
   const [draftPoints, setDraftPoints] = useState<Point[]>([])
   const [cursorPos, setCursorPos] = useState<Point | null>(null)
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>('full')
 
   useEffect(() => {
     zonesRef.current = zones
   }, [zones])
+
+  useEffect(() => {
+    overlayModeRef.current = overlayMode
+  }, [overlayMode])
 
   // Restart the feed (camera re-request or upload re-play) whenever the source changes.
   useEffect(() => {
@@ -228,30 +234,38 @@ export default function CameraStage({
           }
           peopleRef.current.set(id, person)
 
-          // draw skeleton
           const color = ACTIVITY_COLORS[activity] ?? '#94a3b8'
-          ctx.strokeStyle = color
-          ctx.lineWidth = 5 * DRAW_SCALE
-          for (const [a, b] of SKELETON_EDGES) {
-            const ka = pose.keypoints.find((k) => k.name === a)
-            const kb = pose.keypoints.find((k) => k.name === b)
-            if (ka && kb && (ka.score ?? 0) > 0.3 && (kb.score ?? 0) > 0.3) {
-              const pa = mapPointCover(ka, cover)
-              const pb = mapPointCover(kb, cover)
-              ctx.beginPath()
-              ctx.moveTo(pa.x, pa.y)
-              ctx.lineTo(pb.x, pb.y)
-              ctx.stroke()
+          if (overlayModeRef.current === 'full') {
+            // draw skeleton
+            ctx.strokeStyle = color
+            ctx.lineWidth = 5 * DRAW_SCALE
+            for (const [a, b] of SKELETON_EDGES) {
+              const ka = pose.keypoints.find((k) => k.name === a)
+              const kb = pose.keypoints.find((k) => k.name === b)
+              if (ka && kb && (ka.score ?? 0) > 0.3 && (kb.score ?? 0) > 0.3) {
+                const pa = mapPointCover(ka, cover)
+                const pb = mapPointCover(kb, cover)
+                ctx.beginPath()
+                ctx.moveTo(pa.x, pa.y)
+                ctx.lineTo(pb.x, pb.y)
+                ctx.stroke()
+              }
             }
-          }
-          for (const k of pose.keypoints) {
-            if ((k.score ?? 0) > 0.3) {
-              const pk = mapPointCover(k, cover)
-              ctx.beginPath()
-              ctx.arc(pk.x, pk.y, 6 * DRAW_SCALE, 0, Math.PI * 2)
-              ctx.fillStyle = color
-              ctx.fill()
+            for (const k of pose.keypoints) {
+              if ((k.score ?? 0) > 0.3) {
+                const pk = mapPointCover(k, cover)
+                ctx.beginPath()
+                ctx.arc(pk.x, pk.y, 6 * DRAW_SCALE, 0, Math.PI * 2)
+                ctx.fillStyle = color
+                ctx.fill()
+              }
             }
+          } else {
+            // minimal mode: just a marker at the person's tracked position
+            ctx.beginPath()
+            ctx.arc(canvasCentroid.x, canvasCentroid.y, 7 * DRAW_SCALE, 0, Math.PI * 2)
+            ctx.fillStyle = color
+            ctx.fill()
           }
           const label = `#${id} ${activity}`
           ctx.font = `bold ${22 * DRAW_SCALE}px system-ui, sans-serif`
@@ -372,22 +386,31 @@ export default function CameraStage({
   return (
     <div className="stage">
       <div className="stage-toolbar">
-        {drawMode && draftPoints.length >= MIN_ZONE_POINTS && (
-          <button className="btn" onClick={() => finishZone(draftPoints)}>
-            Finish zone
-          </button>
+        {drawMode && (
+          <div className="toolbar-group">
+            <button className="btn" onClick={() => finishZone(draftPoints)} disabled={draftPoints.length < MIN_ZONE_POINTS}>
+              Finish zone
+            </button>
+            <button className="btn" onClick={() => setDraftPoints([])} disabled={!draftPoints.length}>
+              Cancel zone
+            </button>
+          </div>
         )}
-        {drawMode && draftPoints.length > 0 && (
-          <button className="btn" onClick={() => setDraftPoints([])}>
-            Cancel zone
+        <div className="toolbar-group">
+          <button
+            className="btn"
+            onClick={() => setOverlayMode((m) => (m === 'full' ? 'minimal' : 'full'))}
+            title="Toggle skeleton overlay"
+          >
+            {overlayMode === 'full' ? 'Overlay: Full' : 'Overlay: Minimal'}
           </button>
-        )}
-        <button className="btn" onClick={handleCapture}>
-          Capture frame
-        </button>
-        <button className="btn" onClick={() => setRunning((r) => !r)}>
-          {running ? 'Stop feed' : 'Start feed'}
-        </button>
+          <button className="btn" onClick={handleCapture}>
+            Capture frame
+          </button>
+          <button className={running ? 'btn' : 'btn active'} onClick={() => setRunning((r) => !r)}>
+            {running ? 'Stop feed' : 'Start feed'}
+          </button>
+        </div>
       </div>
       <video
         ref={videoRef}

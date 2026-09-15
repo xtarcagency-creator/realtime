@@ -70,33 +70,54 @@ function App() {
     resetRun()
   }
 
+  function exportEventsCsv() {
+    const header = 'timestamp,person_id,level,message\n'
+    const rows = [...events].reverse().map((e) => {
+      const message = `"${e.message.replace(/"/g, '""')}"`
+      return `${new Date(e.timestamp).toISOString()},${e.personId},${e.level},${message}`
+    })
+    const blob = new Blob([header + rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `activity-events-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="app">
       <header className="app-header">
-        <div className="brand">Realtime Human Activity Analyser</div>
-        <p className="tagline">
-          Live in-browser person tracking, pose estimation &amp; zone-based behavior detection (loitering,
-          dwell time) — runs entirely client-side.
-        </p>
-        <div className="source-bar">
-          <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
-            Live camera
-          </button>
-          <button className={source.kind === 'upload' ? 'btn active' : 'btn'} onClick={() => fileInputRef.current?.click()}>
-            Upload video
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleFile(file)
-              e.target.value = ''
-            }}
-          />
-          {fileName && source.kind === 'upload' && <span className="file-name">{fileName}</span>}
+        <div className="header-row">
+          <div className="brand-block">
+            <div className="brand">Realtime Human Activity Analyser</div>
+            <p className="tagline">Live in-browser pose tracking &amp; zone-based behavior detection.</p>
+          </div>
+          <div className="source-bar">
+            <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
+              Live camera
+            </button>
+            <button
+              className={source.kind === 'upload' ? 'btn active' : 'btn'}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload video
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleFile(file)
+                e.target.value = ''
+              }}
+            />
+            {fileName && source.kind === 'upload' && <span className="file-name">{fileName}</span>}
+          </div>
         </div>
       </header>
       <main className="layout">
@@ -123,6 +144,7 @@ function App() {
           onDeleteZone={deleteZone}
           quality={quality}
           onQualityChange={setQuality}
+          onExportEvents={exportEventsCsv}
         />
       </main>
     </div>

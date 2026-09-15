@@ -38,3 +38,5 @@ export interface ActivityEvent {
 export type Source = { kind: 'camera' } | { kind: 'upload'; file: File }
 
 export type DetectionQuality = 'fast' | 'balanced' | 'high'
+
+export type OverlayMode = 'full' | 'minimal'

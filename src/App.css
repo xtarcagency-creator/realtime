@@ -5,28 +5,41 @@
 }
 
 .app-header {
-  padding: 18px 24px;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand-block {
+  min-width: 0;
+}
+
 .brand {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-h);
 }
 
 .tagline {
-  margin: 6px 0 14px;
-  max-width: 780px;
+  margin: 2px 0 0;
+  max-width: 560px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .source-bar {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .file-name {
@@ -51,9 +64,22 @@
 .stage-toolbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 8px;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 6px;
+  padding-right: 10px;
+  border-right: 1px solid var(--border);
+}
+
+.toolbar-group:last-child {
+  padding-right: 0;
+  border-right: none;
 }
 
 .stage-frame {

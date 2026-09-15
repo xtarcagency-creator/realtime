@@ -18,6 +18,7 @@ interface Props {
   onDeleteZone: (id: string) => void
   quality: DetectionQuality
   onQualityChange: (quality: DetectionQuality) => void
+  onExportEvents: () => void
 }
 
 export default function Dashboard({
@@ -32,6 +33,7 @@ export default function Dashboard({
   onDeleteZone,
   quality,
   onQualityChange,
+  onExportEvents,
 }: Props) {
   return (
     <aside className="dashboard">
@@ -121,7 +123,12 @@ export default function Dashboard({
       </div>
 
       <div className="panel panel-grow">
-        <div className="panel-title">Event log</div>
+        <div className="panel-title-row">
+          <div className="panel-title">Event log</div>
+          <button className="btn" onClick={onExportEvents} disabled={!events.length}>
+            Export CSV
+          </button>
+        </div>
         {!events.length && <div className="empty">Events (loitering, zone interactions) appear here.</div>}
         <ul className="event-list">
           {events.map((e) => (

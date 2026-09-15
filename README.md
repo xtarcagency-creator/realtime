@@ -23,8 +23,10 @@ no video leaves the device.
   model input resolution for FPS (useful on slower hardware or for
   catching smaller/farther people).
 - **Frame capture** — save the current canvas (video + overlay) as a PNG.
+- **Overlay toggle** — Full (skeleton + labels) or Minimal (just a marker +
+  labels), for a cleaner view when someone's watching over your shoulder.
 - **Live dashboard** — person count, FPS, per-person activity, zone list,
-  and a scrolling event log.
+  and a scrolling event log with CSV export.
 - **Stop/start control** — release the camera or pause the video without
   reloading the page.
 - Zones persist across reloads (localStorage).
