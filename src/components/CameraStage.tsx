@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Check, X, Eye, EyeClosed, Camera, Play, Pause, CircleNotch } from '@phosphor-icons/react'
 import { estimatePoses, preloadModels, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import {
@@ -480,9 +481,11 @@ export default function CameraStage({
         {drawMode && (
           <div className="toolbar-group">
             <button className="btn" onClick={() => finishZone(draftPoints)} disabled={draftPoints.length < MIN_ZONE_POINTS}>
+              <Check size={13} weight="bold" />
               Finish zone
             </button>
             <button className="btn" onClick={() => setDraftPoints([])} disabled={!draftPoints.length}>
+              <X size={13} weight="bold" />
               Cancel zone
             </button>
           </div>
@@ -493,12 +496,15 @@ export default function CameraStage({
             onClick={() => setOverlayMode((m) => (m === 'full' ? 'minimal' : 'full'))}
             title="Toggle skeleton overlay"
           >
+            {overlayMode === 'full' ? <Eye size={13} weight="bold" /> : <EyeClosed size={13} weight="bold" />}
             {overlayMode === 'full' ? 'Overlay: Full' : 'Overlay: Minimal'}
           </button>
           <button className="btn" onClick={handleCapture}>
+            <Camera size={13} weight="bold" />
             Capture frame
           </button>
           <button className={running ? 'btn' : 'btn active'} onClick={() => setRunning((r) => !r)}>
+            {running ? <Pause size={13} weight="bold" /> : <Play size={13} weight="bold" />}
             {running ? 'Stop feed' : 'Start feed'}
           </button>
         </div>
@@ -533,15 +539,15 @@ export default function CameraStage({
         {alertPulse > 0 && <div key={alertPulse} className="alert-flash" />}
         {status && (
           <div className="stage-status">
-            {status.endsWith('…') && <span className="spinner spinner-light" />}
+            {status.endsWith('…') && <CircleNotch size={16} weight="bold" className="spin" />}
             {status}
           </div>
         )}
       </div>
       {source.kind === 'upload' && running && (
         <div className="video-scrubber">
-          <button className="btn" onClick={togglePlayPause}>
-            {videoPlaying ? 'Pause' : 'Play'}
+          <button className="btn btn-icon" onClick={togglePlayPause} aria-label={videoPlaying ? 'Pause' : 'Play'}>
+            {videoPlaying ? <Pause size={13} weight="bold" /> : <Play size={13} weight="bold" />}
           </button>
           <input
             type="range"

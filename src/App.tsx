@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { VideoCamera, UploadSimple } from '@phosphor-icons/react'
 import CameraStage from './components/CameraStage'
 import Dashboard from './components/Dashboard'
 import type { ActivityEvent, DetectionQuality, Source, TrackedPerson, Zone } from './lib/types'
@@ -99,12 +100,14 @@ function App() {
           </div>
           <div className="source-bar">
             <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
+              <VideoCamera size={13} weight="bold" />
               Live camera
             </button>
             <button
               className={source.kind === 'upload' ? 'btn active' : 'btn'}
               onClick={() => fileInputRef.current?.click()}
             >
+              <UploadSimple size={13} weight="bold" />
               Upload video
             </button>
             <input

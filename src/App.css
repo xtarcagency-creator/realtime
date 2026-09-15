@@ -202,12 +202,21 @@
 }
 
 .panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
   margin-bottom: 10px;
+}
+
+.panel-title svg {
+  color: var(--text-h);
+  opacity: 0.55;
+  flex-shrink: 0;
 }
 
 .panel-title-row {
@@ -228,6 +237,9 @@
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--text);
@@ -242,6 +254,22 @@
     background 120ms ease,
     box-shadow 120ms ease,
     transform 80ms ease;
+}
+
+.btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.btn.active svg {
+  opacity: 0.9;
+}
+
+.btn-icon {
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  justify-content: center;
 }
 
 .btn:hover:not(:disabled) {
@@ -308,32 +336,34 @@
   font-weight: 500;
 }
 
-.spinner {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent);
-  animation: spin 700ms linear infinite;
-  flex-shrink: 0;
-}
-
-.spinner-light {
-  width: 14px;
-  height: 14px;
-  border-color: rgba(255, 255, 255, 0.25);
-  border-top-color: #fff;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+.spin {
+  animation: spin 800ms linear infinite;
+}
+
 .empty {
   color: var(--muted);
   font-size: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.empty-state svg {
+  opacity: 0.4;
 }
 
 .zone-list,
@@ -372,6 +402,9 @@
 }
 
 .zone-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 24px;
   height: 24px;
@@ -380,8 +413,6 @@
   border-radius: var(--radius-sm);
   color: var(--muted);
   cursor: pointer;
-  line-height: 1;
-  font-size: 14px;
   transition:
     border-color 120ms ease,
     color 120ms ease,
@@ -410,15 +441,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.stepper .btn {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .stepper-value {

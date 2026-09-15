@@ -1,3 +1,17 @@
+import {
+  Users,
+  Gauge,
+  MapPinArea,
+  ListBullets,
+  PencilSimple,
+  Trash,
+  X,
+  Minus,
+  Plus,
+  DownloadSimple,
+  CircleNotch,
+  UsersThree,
+} from '@phosphor-icons/react'
 import { ACTIVITY_COLORS } from '../lib/activityColors'
 import type { ActivityEvent, DetectionQuality, TrackedPerson, Zone } from '../lib/types'
 
@@ -45,7 +59,10 @@ export default function Dashboard({
   return (
     <aside className="dashboard">
       <div className="panel">
-        <div className="panel-title">Live status</div>
+        <div className="panel-title">
+          <Users size={13} weight="bold" />
+          Live status
+        </div>
         <div className="stat-row">
           <div className="stat">
             <span className="stat-value">{people.length}</span>
@@ -60,11 +77,14 @@ export default function Dashboard({
 
       <div className="panel">
         <div className="panel-title-row">
-          <div className="panel-title">Detection quality</div>
+          <div className="panel-title">
+            <Gauge size={13} weight="bold" />
+            Detection quality
+          </div>
           {modelLoading && (
             <span className="loading-badge">
-              <span className="spinner" />
-              Loading model…
+              <CircleNotch size={12} weight="bold" className="spin" />
+              Loading model
             </span>
           )}
         </div>
@@ -89,12 +109,17 @@ export default function Dashboard({
 
       <div className="panel">
         <div className="panel-title-row">
-          <div className="panel-title">Zones</div>
+          <div className="panel-title">
+            <MapPinArea size={13} weight="bold" />
+            Zones
+          </div>
           <div className="panel-actions">
             <button className={drawMode ? 'btn active' : 'btn'} onClick={onToggleDraw}>
+              <PencilSimple size={13} weight="bold" />
               {drawMode ? 'Drawing…' : 'Draw zone'}
             </button>
             <button className="btn" onClick={onClearZones} disabled={!zones.length}>
+              <Trash size={13} weight="bold" />
               Clear
             </button>
           </div>
@@ -103,19 +128,19 @@ export default function Dashboard({
           <span className="loiter-label">Loiter threshold</span>
           <div className="stepper">
             <button
-              className="btn"
+              className="btn btn-icon"
               onClick={() => onLoiterThresholdChange(Math.max(2, loiterThresholdSec - 2))}
               aria-label="Decrease loiter threshold"
             >
-              −
+              <Minus size={12} weight="bold" />
             </button>
             <span className="stepper-value">{loiterThresholdSec}s</span>
             <button
-              className="btn"
+              className="btn btn-icon"
               onClick={() => onLoiterThresholdChange(Math.min(60, loiterThresholdSec + 2))}
               aria-label="Increase loiter threshold"
             >
-              +
+              <Plus size={12} weight="bold" />
             </button>
           </div>
         </div>
@@ -125,7 +150,12 @@ export default function Dashboard({
             video — to close it.
           </div>
         )}
-        {!zones.length && !drawMode && <div className="empty">Draw a zone to mark a shelf/aisle.</div>}
+        {!zones.length && !drawMode && (
+          <div className="empty-state">
+            <MapPinArea size={20} weight="light" />
+            <span>Draw a zone to mark a shelf/aisle.</span>
+          </div>
+        )}
         <ul className="zone-list">
           {zones.map((z) => (
             <li key={z.id} className="zone-row">
@@ -140,7 +170,7 @@ export default function Dashboard({
                 aria-label={`Delete ${z.label}`}
                 title="Delete zone"
               >
-                ×
+                <X size={12} weight="bold" />
               </button>
             </li>
           ))}
@@ -148,8 +178,16 @@ export default function Dashboard({
       </div>
 
       <div className="panel">
-        <div className="panel-title">People</div>
-        {!people.length && <div className="empty">No one detected yet.</div>}
+        <div className="panel-title">
+          <UsersThree size={13} weight="bold" />
+          People
+        </div>
+        {!people.length && (
+          <div className="empty-state">
+            <UsersThree size={20} weight="light" />
+            <span>No one detected yet.</span>
+          </div>
+        )}
         <ul className="people-list">
           {people.map((p) => (
             <li key={p.id} className={`activity-${p.activity}`}>
@@ -163,12 +201,21 @@ export default function Dashboard({
 
       <div className="panel panel-grow">
         <div className="panel-title-row">
-          <div className="panel-title">Event log</div>
+          <div className="panel-title">
+            <ListBullets size={13} weight="bold" />
+            Event log
+          </div>
           <button className="btn" onClick={onExportEvents} disabled={!events.length}>
+            <DownloadSimple size={13} weight="bold" />
             Export CSV
           </button>
         </div>
-        {!events.length && <div className="empty">Events (lingering, loitering) appear here.</div>}
+        {!events.length && (
+          <div className="empty-state">
+            <ListBullets size={20} weight="light" />
+            <span>Events (lingering, loitering) appear here.</span>
+          </div>
+        )}
         <ul className="event-list">
           {events.map((e) => (
             <li key={e.id} className={e.level}>
