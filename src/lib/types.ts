@@ -27,6 +27,8 @@ export interface TrackedPerson {
   zoneDwell: Record<string, number>
   /** ms timestamp a person was last confirmed inside each zone — drives the exit grace period. */
   zoneLastInside: Record<string, number>
+  /** Count of distinct times a person has fully entered each zone (not incremented across the exit grace window). */
+  zoneVisits: Record<string, number>
   history: Point[]
 }
 

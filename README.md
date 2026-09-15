@@ -9,12 +9,17 @@ no video leaves the device.
 - **Multi-person detection & tracking** — every person in frame gets a
   persistent ID across frames. Fast/Balanced use MoveNet MultiPose
   (one pass over the whole frame — cheap). High switches to a top-down
-  pipeline: a person detector (COCO-SSD) finds each person's box, then
-  MoveNet Thunder runs pose estimation on just that person's own cropped,
-  upscaled region. Bottom-up multi-pose models can't cleanly separate
-  people who are small, close together, or overlapping (a single
-  "person center" heatmap can't split them) — the top-down pipeline
-  fixes exactly that, which is what low-res CCTV-style footage needs.
+  pipeline: two independent detectors (COCO-SSD, and MoveNet MultiPose's
+  own per-instance box output) each propose person boxes, unioned and
+  deduped — a single generic detector's NMS can collapse two
+  heavily-overlapping people into one box, so either one catching a
+  person is enough. MoveNet Thunder then runs pose estimation on each
+  person's own cropped, upscaled region (padded to a square, and capped
+  so one person's crop can't reach into a neighbor standing close by).
+  Bottom-up multi-pose models can't cleanly separate people who are
+  small, close together, or overlapping (a single "person center"
+  heatmap can't split them) — this pipeline is built specifically for
+  that case, which is what low-res CCTV-style footage needs.
 - **Pose estimation** — 17-point skeleton per person, rendered live over the
   video.
 - **Activity classification** — per person, per frame: `standing`,
@@ -27,6 +32,9 @@ no video leaves the device.
   brief exit from a zone (detection flicker, stepping out and back) doesn't
   reset the timer — only a continuous 1.5s+ outside the zone does. The
   loiter threshold is adjustable in the sidebar (Zones panel).
+- **Zone revisits** — repeatedly leaving and returning to the same zone
+  (circling a shelf, browsing back and forth) is logged as its own signal
+  once it happens 3+ times, independent of any single dwell duration.
 - **Camera or uploaded video** — analyse a live webcam feed or a video
   file, with play/pause/seek controls for uploaded video.
 - **Detection quality control** — Fast / Balanced / High. Multi-person
@@ -99,10 +107,12 @@ from within an iframe, and the embedding page must be served over HTTPS
 - `src/lib/pose.ts` — unified `estimatePoses(video, quality)`: routes to
   the bottom-up MoveNet MultiPose detector (fast/balanced) or the
   top-down pipeline (high). Caches/disposes models as quality changes.
-- `src/lib/topDownPose.ts` — the top-down pipeline: COCO-SSD person
-  detection → square padded crop per person → MoveNet Thunder per crop →
-  map keypoints back to full-frame coordinates → `CentroidTracker` for
-  persistent IDs (this path has no built-in tracker, unlike MultiPose).
+- `src/lib/topDownPose.ts` — the top-down pipeline: COCO-SSD + MoveNet
+  MultiPose's own box output as two independent person-box proposals →
+  IoU dedupe → square padded crop per person (capped against nearby
+  neighbors) → MoveNet Thunder per crop → map keypoints back to
+  full-frame coordinates → `CentroidTracker` for persistent IDs (this
+  path has no built-in tracker, unlike MultiPose).
 - `src/lib/tracker.ts` — minimal nearest-centroid tracker used by the
   top-down pipeline.
 - `src/lib/activity.ts` — heuristic activity classifier + shared centroid
@@ -124,10 +134,14 @@ from within an iframe, and the embedding page must be served over HTTPS
   accuracy on smaller/farther/closely-grouped people (typical of
   CCTV-style footage) is meaningfully worse than on a close, well-lit
   webcam subject. High's top-down pipeline handles that case far better
-  but costs real FPS (a person detector pass + one pose pass *per
-  person*, per frame) — still a lightweight, in-browser model, not the
-  accuracy of a heavy server-side detector, so very low-res or very
-  crowded footage still has a real ceiling.
+  but costs real FPS (two detector passes + one pose pass *per person*,
+  per frame) — still a lightweight, in-browser model, not the accuracy
+  of a heavy server-side detector, so very low-res, very crowded, or
+  heavily overlapping footage still has a real ceiling. A meaningfully
+  bigger accuracy jump from here (a modern detector like YOLO via ONNX
+  Runtime Web, or moving inference server-side) is a real option but a
+  much larger engineering lift than this tier's current person-detector
+  ensemble.
 - Switching Detection quality mid-session gives everyone new tracking
   IDs (fast/balanced and high use independent tracking, so identity
   doesn't carry across the switch).

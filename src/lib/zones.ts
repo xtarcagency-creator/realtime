@@ -33,3 +33,8 @@ export const LINGER_THRESHOLD_RATIO = 0.5
 export const ZONE_EXIT_GRACE_SEC = 1.5
 export const MIN_ZONE_POINTS = 3
 export const CLOSE_POINT_RADIUS_PX = 18
+// A person leaving and returning to the same zone repeatedly (browsing back
+// and forth, circling a shelf) is a real suspicious-behavior signal distinct
+// from one long continuous dwell — flag it once a person has fully entered
+// the same zone this many times.
+export const ZONE_REVISIT_ALERT_COUNT = 3

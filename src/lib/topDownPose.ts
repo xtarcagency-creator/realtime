@@ -155,7 +155,19 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
     // proportions and measurably hurts keypoint accuracy.
     const cx = box.x0 + bw / 2
     const cy = box.y0 + bh / 2
-    const side = Math.max(bw, bh) * (1 + PAD_RATIO * 2)
+    let side = Math.max(bw, bh) * (1 + PAD_RATIO * 2)
+    // Cap the crop so it doesn't reach past a neighboring person's center —
+    // for two people standing close together, an uncapped padded crop
+    // around one can include the other's body, confusing the single-person
+    // pose model (which assumes one dominant person in frame) even though
+    // both got correctly detected as separate boxes.
+    for (const other of people) {
+      if (other === box) continue
+      const ocx = other.x0 + (other.x1 - other.x0) / 2
+      const ocy = other.y0 + (other.y1 - other.y0) / 2
+      const dist = Math.hypot(cx - ocx, cy - ocy)
+      side = Math.min(side, dist * 1.3)
+    }
     const x0 = Math.max(0, cx - side / 2)
     const y0 = Math.max(0, cy - side / 2)
     const x1 = Math.min(vw, cx + side / 2)

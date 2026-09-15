@@ -6,6 +6,7 @@ import {
   zoneCentroid,
   LINGER_THRESHOLD_RATIO,
   ZONE_EXIT_GRACE_SEC,
+  ZONE_REVISIT_ALERT_COUNT,
   MIN_ZONE_POINTS,
   CLOSE_POINT_RADIUS_PX,
 } from '../lib/zones'
@@ -231,6 +232,7 @@ export default function CameraStage({
           const lingerSec = loiterSec * LINGER_THRESHOLD_RATIO
           const zoneDwell = { ...(prev?.zoneDwell ?? {}) }
           const zoneLastInside = { ...(prev?.zoneLastInside ?? {}) }
+          const zoneVisits = { ...(prev?.zoneVisits ?? {}) }
           for (const zone of zonesRef.current) {
             const inside = pointInZone(canvasCentroid, zone)
             const key = zone.id
@@ -238,6 +240,18 @@ export default function CameraStage({
             if (inside) {
               zoneDwell[key] = before + dt
               zoneLastInside[key] = now
+              if (before === 0) {
+                zoneVisits[key] = (zoneVisits[key] ?? 0) + 1
+                if (zoneVisits[key] === ZONE_REVISIT_ALERT_COUNT) {
+                  onEvent({
+                    id: `${Date.now()}-${id}-${key}-revisit`,
+                    timestamp: Date.now(),
+                    personId: id,
+                    message: `Person ${id} has revisited "${zone.label}" ${ZONE_REVISIT_ALERT_COUNT} times`,
+                    level: 'info',
+                  })
+                }
+              }
               if (before < lingerSec && zoneDwell[key] >= lingerSec) {
                 onEvent({
                   id: `${Date.now()}-${id}-${key}-linger`,
@@ -281,6 +295,7 @@ export default function CameraStage({
             lastSeen: now,
             zoneDwell,
             zoneLastInside,
+            zoneVisits,
             history,
           }
           peopleRef.current.set(id, person)
