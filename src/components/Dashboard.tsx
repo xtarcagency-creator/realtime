@@ -9,9 +9,20 @@ interface Props {
   onToggleDraw: () => void
   onClearZones: () => void
   onRenameZone: (id: string, label: string) => void
+  onDeleteZone: (id: string) => void
 }
 
-export default function Dashboard({ people, events, zones, fps, drawMode, onToggleDraw, onClearZones, onRenameZone }: Props) {
+export default function Dashboard({
+  people,
+  events,
+  zones,
+  fps,
+  drawMode,
+  onToggleDraw,
+  onClearZones,
+  onRenameZone,
+  onDeleteZone,
+}: Props) {
   return (
     <aside className="dashboard">
       <div className="panel">
@@ -43,12 +54,20 @@ export default function Dashboard({ people, events, zones, fps, drawMode, onTogg
         {!zones.length && <div className="empty">Drag on the camera view to mark a shelf/aisle zone.</div>}
         <ul className="zone-list">
           {zones.map((z) => (
-            <li key={z.id}>
+            <li key={z.id} className="zone-row">
               <input
                 value={z.label}
                 onChange={(e) => onRenameZone(z.id, e.target.value)}
                 className="zone-input"
               />
+              <button
+                className="zone-remove"
+                onClick={() => onDeleteZone(z.id)}
+                aria-label={`Delete ${z.label}`}
+                title="Delete zone"
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
