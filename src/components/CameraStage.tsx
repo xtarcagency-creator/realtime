@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getDetector } from '../lib/pose'
 import { classifyActivity, pushHistory } from '../lib/activity'
 import { pointInZone, LOITER_THRESHOLD_SEC } from '../lib/zones'
-import type { ActivityEvent, Point, TrackedPerson, Zone } from '../lib/types'
+import type { ActivityEvent, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
 const SKELETON_EDGES: [string, string][] = [
   ['left_shoulder', 'right_shoulder'],
@@ -20,14 +20,15 @@ const SKELETON_EDGES: [string, string][] = [
 ]
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  standing: '#5eead4',
-  walking: '#60a5fa',
-  bending: '#fbbf24',
-  reaching: '#f472b6',
-  loitering: '#f87171',
+  standing: '#64748b',
+  walking: '#2563eb',
+  bending: '#b45309',
+  reaching: '#7c3aed',
+  loitering: '#dc2626',
 }
 
 interface Props {
+  source: Source
   zones: Zone[]
   onZonesChange: (zones: Zone[]) => void
   onPeopleUpdate: (people: TrackedPerson[]) => void
@@ -36,14 +37,14 @@ interface Props {
   drawMode: boolean
 }
 
-export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEvent, onFps, drawMode }: Props) {
+export default function CameraStage({ source, zones, onZonesChange, onPeopleUpdate, onEvent, onFps, drawMode }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const peopleRef = useRef<Map<number, TrackedPerson>>(new Map())
   const zonesRef = useRef(zones)
   const dragRef = useRef<{ x: number; y: number } | null>(null)
   const [dragRect, setDragRect] = useState<Zone | null>(null)
-  const [status, setStatus] = useState('Requesting camera…')
+  const [status, setStatus] = useState('Starting…')
 
   useEffect(() => {
     zonesRef.current = zones
@@ -51,6 +52,7 @@ export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEv
 
   useEffect(() => {
     let stream: MediaStream | null = null
+    let objectUrl: string | null = null
     let raf = 0
     let stopped = false
     let lastFrameTime = performance.now()
@@ -58,15 +60,33 @@ export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEv
     let fpsTimer = performance.now()
 
     async function start() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 720 }, audio: false })
-      } catch {
-        setStatus('Camera access denied or unavailable.')
-        return
-      }
       const video = videoRef.current!
-      video.srcObject = stream
+      peopleRef.current = new Map()
+
+      if (source.kind === 'camera') {
+        setStatus('Requesting camera…')
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 720 }, audio: false })
+        } catch {
+          setStatus('Camera access denied or unavailable.')
+          return
+        }
+        video.srcObject = stream
+        video.loop = false
+      } else {
+        setStatus('Loading video…')
+        objectUrl = URL.createObjectURL(source.file)
+        video.srcObject = null
+        video.src = objectUrl
+        video.loop = true
+      }
+
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 1) resolve()
+        else video.onloadedmetadata = () => resolve()
+      })
       await video.play()
+      if (stopped) return
 
       const canvas = canvasRef.current!
       canvas.width = video.videoWidth
@@ -79,6 +99,10 @@ export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEv
 
       const loop = async () => {
         if (stopped) return
+        if (video.paused || video.ended) {
+          raf = requestAnimationFrame(loop)
+          return
+        }
         const now = performance.now()
         const dt = (now - lastFrameTime) / 1000
         lastFrameTime = now
@@ -175,12 +199,12 @@ export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEv
         // draw zones
         for (const zone of zonesRef.current) {
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
-          ctx.strokeStyle = occupied ? '#f87171' : '#38bdf8'
-          ctx.fillStyle = occupied ? 'rgba(248,113,113,0.12)' : 'rgba(56,189,248,0.08)'
+          ctx.strokeStyle = occupied ? '#dc2626' : '#2563eb'
+          ctx.fillStyle = occupied ? 'rgba(220,38,38,0.1)' : 'rgba(37,99,235,0.08)'
           ctx.lineWidth = 2
           ctx.strokeRect(zone.x, zone.y, zone.w, zone.h)
           ctx.fillRect(zone.x, zone.y, zone.w, zone.h)
-          ctx.fillStyle = occupied ? '#f87171' : '#38bdf8'
+          ctx.fillStyle = occupied ? '#dc2626' : '#2563eb'
           ctx.font = '13px system-ui, sans-serif'
           ctx.fillText(zone.label, zone.x + 6, zone.y + 16)
         }
@@ -207,9 +231,10 @@ export default function CameraStage({ zones, onZonesChange, onPeopleUpdate, onEv
       stopped = true
       cancelAnimationFrame(raf)
       stream?.getTracks().forEach((t) => t.stop())
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [source])
 
   function toCanvasCoords(e: React.MouseEvent) {
     const canvas = canvasRef.current!

@@ -1,16 +1,16 @@
 :root {
-  --bg: #0b0d12;
-  --panel: #12151c;
-  --panel-2: #171b24;
-  --border: #232733;
-  --text: #cbd2e0;
-  --text-h: #f4f6fb;
-  --muted: #6b7280;
-  --accent: #38bdf8;
-  --warn: #f87171;
+  --bg: #fafafa;
+  --panel: #ffffff;
+  --panel-2: #f4f4f5;
+  --border: #e4e4e7;
+  --text: #3f3f46;
+  --text-h: #18181b;
+  --muted: #71717a;
+  --accent: #2563eb;
+  --warn: #dc2626;
 
-  font: 15px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: dark;
+  font: 14px/1.5 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;

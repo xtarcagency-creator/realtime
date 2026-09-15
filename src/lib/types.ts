@@ -36,3 +36,5 @@ export interface ActivityEvent {
   message: string
   level: 'info' | 'warning'
 }
+
+export type Source = { kind: 'camera' } | { kind: 'upload'; file: File }
