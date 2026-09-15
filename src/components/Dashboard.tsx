@@ -60,7 +60,9 @@ export default function Dashboard({
     <aside className="dashboard">
       <div className="panel">
         <div className="panel-title">
-          <Users size={13} weight="bold" />
+          <span className="icon-badge">
+            <Users size={12} weight="bold" />
+          </span>
           Live status
         </div>
         <div className="stat-row">
@@ -78,7 +80,9 @@ export default function Dashboard({
       <div className="panel">
         <div className="panel-title-row">
           <div className="panel-title">
-            <Gauge size={13} weight="bold" />
+            <span className="icon-badge">
+              <Gauge size={12} weight="bold" />
+            </span>
             Detection quality
           </div>
           {modelLoading && (
@@ -110,7 +114,9 @@ export default function Dashboard({
       <div className="panel">
         <div className="panel-title-row">
           <div className="panel-title">
-            <MapPinArea size={13} weight="bold" />
+            <span className="icon-badge">
+              <MapPinArea size={12} weight="bold" />
+            </span>
             Zones
           </div>
           <div className="panel-actions">
@@ -179,7 +185,9 @@ export default function Dashboard({
 
       <div className="panel">
         <div className="panel-title">
-          <UsersThree size={13} weight="bold" />
+          <span className="icon-badge">
+            <UsersThree size={12} weight="bold" />
+          </span>
           People
         </div>
         {!people.length && (
@@ -202,7 +210,9 @@ export default function Dashboard({
       <div className="panel panel-grow">
         <div className="panel-title-row">
           <div className="panel-title">
-            <ListBullets size={13} weight="bold" />
+            <span className="icon-badge">
+              <ListBullets size={12} weight="bold" />
+            </span>
             Event log
           </div>
           <button className="btn" onClick={onExportEvents} disabled={!events.length}>

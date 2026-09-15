@@ -355,9 +355,9 @@ export default function CameraStage({
         for (const zone of zonesRef.current) {
           if (zone.points.length < MIN_ZONE_POINTS) continue
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
-          const zoneColor = occupied ? '#dc2626' : '#2563eb'
+          const zoneColor = occupied ? '#f26161' : '#4f8cff'
           ctx.strokeStyle = zoneColor
-          ctx.fillStyle = occupied ? 'rgba(220,38,38,0.1)' : 'rgba(37,99,235,0.08)'
+          ctx.fillStyle = occupied ? 'rgba(242,97,97,0.12)' : 'rgba(79,140,255,0.1)'
           ctx.lineWidth = 3 * DRAW_SCALE
           ctx.beginPath()
           zone.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
@@ -503,10 +503,11 @@ export default function CameraStage({
             <Camera size={13} weight="bold" />
             Capture frame
           </button>
-          <button className={running ? 'btn' : 'btn active'} onClick={() => setRunning((r) => !r)}>
-            {running ? <Pause size={13} weight="bold" /> : <Play size={13} weight="bold" />}
-            {running ? 'Stop feed' : 'Start feed'}
-          </button>
+          <label className="toggle" title={running ? 'Stop feed' : 'Start feed'}>
+            <input type="checkbox" checked={running} onChange={() => setRunning((r) => !r)} />
+            <span className="toggle-track" />
+            <span className="toggle-label">Feed</span>
+          </label>
         </div>
       </div>
       <video
@@ -522,17 +523,23 @@ export default function CameraStage({
           onMouseMove={handleCanvasMouseMove}
           className={drawMode ? 'draw-cursor' : ''}
         />
+        {running && !status && source.kind === 'camera' && (
+          <div className="live-badge">
+            <span className="live-dot" />
+            Live
+          </div>
+        )}
         {drawMode && draftPoints.length > 0 && (
           <svg className="zone-draft-overlay" viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} preserveAspectRatio="none">
             <polyline
               points={draftLine.map((p) => `${p.x},${p.y}`).join(' ')}
               fill="none"
-              stroke="#2563eb"
+              stroke="#4f8cff"
               strokeWidth={3 * DRAW_SCALE}
               strokeDasharray={`${8 * DRAW_SCALE} ${6 * DRAW_SCALE}`}
             />
             {draftPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#16a34a' : '#2563eb'} />
+              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#34d399' : '#4f8cff'} />
             ))}
           </svg>
         )}
