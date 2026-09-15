@@ -48,6 +48,12 @@
   min-width: 320px;
 }
 
+.stage-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
 .stage-frame {
   position: relative;
   background: #000;
@@ -56,13 +62,14 @@
   overflow: hidden;
   display: inline-flex;
   max-width: 100%;
-  max-height: calc(100svh - 220px);
+  max-height: calc(100svh - 260px);
+  aspect-ratio: 16 / 9;
 }
 
 .stage-frame canvas {
   display: block;
   max-width: 100%;
-  max-height: calc(100svh - 220px);
+  max-height: calc(100svh - 260px);
   width: auto;
   height: auto;
 }

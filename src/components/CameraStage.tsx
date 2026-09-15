@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { getDetector } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import { pointInZone, LOITER_THRESHOLD_SEC } from '../lib/zones'
+import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
 import type { ActivityEvent, Point, Source, TrackedPerson, Zone } from '../lib/types'
+
+const CANVAS_W = 1280
+const CANVAS_H = 720
 
 const SKELETON_EDGES: [string, string][] = [
   ['left_shoulder', 'right_shoulder'],
@@ -46,10 +50,16 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
   const dragRef = useRef<{ x: number; y: number } | null>(null)
   const [dragRect, setDragRect] = useState<Zone | null>(null)
   const [status, setStatus] = useState('Starting…')
+  const [running, setRunning] = useState(true)
 
   useEffect(() => {
     zonesRef.current = zones
   }, [zones])
+
+  // Restart the feed (camera re-request or upload re-play) whenever the source changes.
+  useEffect(() => {
+    setRunning(true)
+  }, [source])
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -62,12 +72,23 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
     async function start() {
       const video = videoRef.current!
+      const canvas = canvasRef.current!
+      canvas.width = CANVAS_W
+      canvas.height = CANVAS_H
       peopleRef.current = new Map()
+
+      if (!running) {
+        setStatus('Feed stopped')
+        canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+        onPeopleUpdate([])
+        onFps(0)
+        return
+      }
 
       if (source.kind === 'camera') {
         setStatus('Requesting camera…')
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 720 }, audio: false })
+          stream = await navigator.mediaDevices.getUserMedia({ video: { width: CANVAS_W, height: CANVAS_H }, audio: false })
         } catch {
           setStatus('Camera access denied or unavailable.')
           return
@@ -89,10 +110,8 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
       await video.play()
       if (stopped) return
 
-      const canvas = canvasRef.current!
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d')!
+      const cover = computeCoverTransform(video.videoWidth, video.videoHeight, CANVAS_W, CANVAS_H)
 
       setStatus('Loading pose model…')
       const detector = await getDetector()
@@ -112,7 +131,7 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
         ctx.save()
         ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        ctx.drawImage(video, cover.sx, cover.sy, cover.sw, cover.sh, 0, 0, canvas.width, canvas.height)
 
         const seenIds = new Set<number>()
 
@@ -127,11 +146,14 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
           const wristPoint = pose.keypoints
             .filter((k) => (k.name === 'left_wrist' || k.name === 'right_wrist') && (k.score ?? 0) > 0.3)
             .sort((a, b) => a.y - b.y)[0]
+          // classifyActivity/history stay in native video-space (unaffected by canvas presentation size);
+          // zones and drawing use the canvas-space point after the cover crop/scale.
           const centroid: Point = getCentroid(pose)
+          const canvasCentroid = mapPointCover(centroid, cover)
 
           const zoneDwell = { ...(prev?.zoneDwell ?? {}) }
           for (const zone of zonesRef.current) {
-            const inside = pointInZone(centroid, zone)
+            const inside = pointInZone(canvasCentroid, zone)
             const key = zone.id
             if (inside) {
               const before = zoneDwell[key] ?? 0
@@ -157,8 +179,8 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
           const person: TrackedPerson = {
             id,
-            centroid,
-            wrist: wristPoint ? { x: wristPoint.x, y: wristPoint.y } : null,
+            centroid: canvasCentroid,
+            wrist: wristPoint ? mapPointCover({ x: wristPoint.x, y: wristPoint.y }, cover) : null,
             activity,
             lastSeen: now,
             zoneDwell,
@@ -174,23 +196,26 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
             const ka = pose.keypoints.find((k) => k.name === a)
             const kb = pose.keypoints.find((k) => k.name === b)
             if (ka && kb && (ka.score ?? 0) > 0.3 && (kb.score ?? 0) > 0.3) {
+              const pa = mapPointCover(ka, cover)
+              const pb = mapPointCover(kb, cover)
               ctx.beginPath()
-              ctx.moveTo(ka.x, ka.y)
-              ctx.lineTo(kb.x, kb.y)
+              ctx.moveTo(pa.x, pa.y)
+              ctx.lineTo(pb.x, pb.y)
               ctx.stroke()
             }
           }
           for (const k of pose.keypoints) {
             if ((k.score ?? 0) > 0.3) {
+              const pk = mapPointCover(k, cover)
               ctx.beginPath()
-              ctx.arc(k.x, k.y, 3, 0, Math.PI * 2)
+              ctx.arc(pk.x, pk.y, 3, 0, Math.PI * 2)
               ctx.fillStyle = color
               ctx.fill()
             }
           }
           ctx.fillStyle = color
           ctx.font = '14px system-ui, sans-serif'
-          ctx.fillText(`#${id} ${activity}`, centroid.x + 8, centroid.y - 8)
+          ctx.fillText(`#${id} ${activity}`, canvasCentroid.x + 8, canvasCentroid.y - 8)
         }
 
         for (const id of Array.from(peopleRef.current.keys())) {
@@ -235,7 +260,7 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source])
+  }, [source, running])
 
   function toCanvasCoords(e: React.MouseEvent) {
     const canvas = canvasRef.current!
@@ -279,6 +304,11 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
   return (
     <div className="stage">
+      <div className="stage-toolbar">
+        <button className="btn" onClick={() => setRunning((r) => !r)}>
+          {running ? 'Stop feed' : 'Start feed'}
+        </button>
+      </div>
       <video
         ref={videoRef}
         playsInline
