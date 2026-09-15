@@ -1,0 +1,124 @@
+import * as ort from 'onnxruntime-web'
+
+// YOLOv8n (COCO), exported to ONNX at 640x640 input, bundled locally at
+// public/models/yolov8n.onnx — no runtime dependency on a model-hosting CDN.
+// This whole pipeline (letterbox preprocessing, raw output decode, NMS) was
+// verified against Ultralytics' own reference implementation in Python
+// before being ported here: same box coordinates and confidences, run
+// against the actual footage this was built for (see project history).
+const MODEL_URL = '/models/yolov8n.onnx'
+const INPUT_SIZE = 640
+const PERSON_CLASS_INDEX = 0 // COCO class 0 = person
+const CONF_THRESHOLD = 0.25
+const NMS_IOU_THRESHOLD = 0.45
+
+export interface YoloBox {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+  score: number
+}
+
+let sessionPromise: Promise<ort.InferenceSession> | null = null
+let letterboxCanvas: HTMLCanvasElement | null = null
+
+function getSession(): Promise<ort.InferenceSession> {
+  if (!sessionPromise) {
+    sessionPromise = ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] })
+  }
+  return sessionPromise
+}
+
+/** Preload the model so the first detection call isn't slowed by the fetch/compile. */
+export function preloadYoloModel() {
+  void getSession()
+}
+
+interface Letterbox {
+  scale: number
+  padX: number
+  padY: number
+}
+
+function computeLetterbox(vw: number, vh: number): Letterbox {
+  const scale = Math.min(INPUT_SIZE / vw, INPUT_SIZE / vh)
+  const nw = Math.round(vw * scale)
+  const nh = Math.round(vh * scale)
+  return { scale, padX: Math.floor((INPUT_SIZE - nw) / 2), padY: Math.floor((INPUT_SIZE - nh) / 2) }
+}
+
+function iou(a: YoloBox, b: YoloBox): number {
+  const ix0 = Math.max(a.x0, b.x0)
+  const iy0 = Math.max(a.y0, b.y0)
+  const ix1 = Math.min(a.x1, b.x1)
+  const iy1 = Math.min(a.y1, b.y1)
+  const interArea = Math.max(0, ix1 - ix0) * Math.max(0, iy1 - iy0)
+  const areaA = (a.x1 - a.x0) * (a.y1 - a.y0)
+  const areaB = (b.x1 - b.x0) * (b.y1 - b.y0)
+  const union = areaA + areaB - interArea
+  return union > 0 ? interArea / union : 0
+}
+
+function nms(boxes: YoloBox[]): YoloBox[] {
+  const sorted = [...boxes].sort((a, b) => b.score - a.score)
+  const kept: YoloBox[] = []
+  for (const box of sorted) {
+    if (!kept.some((k) => iou(k, box) > NMS_IOU_THRESHOLD)) kept.push(box)
+  }
+  return kept
+}
+
+export async function detectPersons(video: HTMLVideoElement): Promise<YoloBox[]> {
+  const session = await getSession()
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  const { scale, padX, padY } = computeLetterbox(vw, vh)
+  const nw = Math.round(vw * scale)
+  const nh = Math.round(vh * scale)
+
+  if (!letterboxCanvas) letterboxCanvas = document.createElement('canvas')
+  letterboxCanvas.width = INPUT_SIZE
+  letterboxCanvas.height = INPUT_SIZE
+  const ctx = letterboxCanvas.getContext('2d')!
+  ctx.fillStyle = 'rgb(114,114,114)' // YOLO's standard letterbox pad color
+  ctx.fillRect(0, 0, INPUT_SIZE, INPUT_SIZE)
+  ctx.drawImage(video, 0, 0, vw, vh, padX, padY, nw, nh)
+
+  const { data } = ctx.getImageData(0, 0, INPUT_SIZE, INPUT_SIZE)
+  const chw = new Float32Array(3 * INPUT_SIZE * INPUT_SIZE)
+  const plane = INPUT_SIZE * INPUT_SIZE
+  for (let i = 0; i < plane; i++) {
+    const o = i * 4
+    chw[i] = data[o] / 255 // R
+    chw[plane + i] = data[o + 1] / 255 // G
+    chw[2 * plane + i] = data[o + 2] / 255 // B
+  }
+
+  const inputTensor = new ort.Tensor('float32', chw, [1, 3, INPUT_SIZE, INPUT_SIZE])
+  const outputs = await session.run({ [session.inputNames[0]]: inputTensor })
+  const raw = outputs[session.outputNames[0]]
+  // Output shape [1, 84, 8400]: rows 0-3 are box (cx,cy,w,h) in letterboxed
+  // pixel space, rows 4-83 are per-class confidence (already sigmoid-activated
+  // by the export graph). Only class 0 (person) is used here.
+  const numAnchors = raw.dims[2]
+  const values = raw.data as Float32Array
+
+  const candidates: YoloBox[] = []
+  const scoreRowOffset = (4 + PERSON_CLASS_INDEX) * numAnchors
+  for (let i = 0; i < numAnchors; i++) {
+    const score = values[scoreRowOffset + i]
+    if (score < CONF_THRESHOLD) continue
+    const cx = values[i]
+    const cy = values[numAnchors + i]
+    const w = values[2 * numAnchors + i]
+    const h = values[3 * numAnchors + i]
+    const ox = (cx - padX) / scale
+    const oy = (cy - padY) / scale
+    const ow = w / scale
+    const oh = h / scale
+    candidates.push({ x0: ox - ow / 2, y0: oy - oh / 2, x1: ox + ow / 2, y1: oy + oh / 2, score })
+  }
+
+  return nms(candidates)
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { estimatePoses, resetTracking } from '../lib/pose'
+import { estimatePoses, preloadModels, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import {
   pointInZone,
@@ -95,6 +95,7 @@ export default function CameraStage({
 
   useEffect(() => {
     qualityRef.current = quality
+    preloadModels(quality)
   }, [quality])
 
   useEffect(() => {

@@ -1,7 +1,5 @@
-import '@tensorflow/tfjs-backend-webgl'
-import * as tf from '@tensorflow/tfjs-core'
-import * as cocoSsd from '@tensorflow-models/coco-ssd'
 import * as poseDetection from '@tensorflow-models/pose-detection'
+import { detectPersons, preloadYoloModel, type YoloBox } from './yoloDetector'
 import { CentroidTracker } from './tracker'
 import type { Pose } from './pose'
 
@@ -14,16 +12,15 @@ import type { Pose } from './pose'
 // person's own cropped, upscaled region.
 //
 // Person boxes come from two independent detectors, unioned and deduped:
-// COCO-SSD (a generic object detector) and MoveNet MultiPose's own
+// YOLOv8n (a modern, locally-bundled detector — see yoloDetector.ts; this
+// specific pipeline was validated in Python against Ultralytics' own
+// reference implementation before being ported) and MoveNet MultiPose's own
 // per-instance box output (decoded from a person-center heatmap, a
-// different mechanism with different failure modes than SSD's box-level
-// NMS). SSD's NMS is known to collapse two heavily-overlapping "person"
-// boxes into one — exactly the case of two people standing close together
-// — so relying on a single detector can silently drop a person before any
-// pose model even runs. Using both as an ensemble means either one catching
-// a person is enough.
+// different mechanism with different failure modes than YOLO's NMS). Either
+// detector catching a person is enough, which matters because any single
+// detector's NMS can collapse two heavily-overlapping "person" boxes into
+// one — exactly the case of two people standing close together.
 
-const PERSON_SCORE_MIN = 0.35
 const MULTIPOSE_PROPOSAL_SCORE_MIN = 0.15
 const MULTIPOSE_PROPOSAL_DIMENSION = 512 // top of MoveNet's documented recommended range
 const DEDUPE_IOU_THRESHOLD = 0.4
@@ -37,25 +34,10 @@ interface BoxProposal {
   y1: number
 }
 
-let objectDetectorPromise: Promise<cocoSsd.ObjectDetection> | null = null
 let singlePoseDetectorPromise: Promise<poseDetection.PoseDetector> | null = null
 let proposalDetectorPromise: Promise<poseDetection.PoseDetector> | null = null
 let cropCanvas: HTMLCanvasElement | null = null
 const tracker = new CentroidTracker()
-
-function getObjectDetector() {
-  if (!objectDetectorPromise) {
-    objectDetectorPromise = (async () => {
-      await tf.setBackend('webgl')
-      await tf.ready()
-      // 'mobilenet_v2' (vs. the default 'lite_mobilenet_v2') trades speed for
-      // recall — worth it given this whole pipeline already trades FPS for
-      // accuracy.
-      return cocoSsd.load({ base: 'mobilenet_v2' })
-    })()
-  }
-  return objectDetectorPromise
-}
 
 function getSinglePoseDetector() {
   if (!singlePoseDetectorPromise) {
@@ -82,6 +64,13 @@ export function resetTopDownTracker() {
   tracker.reset()
 }
 
+/** Warm all three models (YOLO, Thunder, MultiPose-proposal) so switching to High doesn't stall the first frame. */
+export function preloadTopDownModels() {
+  preloadYoloModel()
+  void getSinglePoseDetector()
+  void getProposalDetector()
+}
+
 function iou(a: BoxProposal, b: BoxProposal): number {
   const ix0 = Math.max(a.x0, b.x0)
   const iy0 = Math.max(a.y0, b.y0)
@@ -104,8 +93,8 @@ function dedupeBoxes(boxes: BoxProposal[]): BoxProposal[] {
 }
 
 export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pose[]> {
-  const [objectDetector, poseDetector, proposalDetector] = await Promise.all([
-    getObjectDetector(),
+  const [yoloBoxes, poseDetector, proposalDetector] = await Promise.all([
+    detectPersons(video),
     getSinglePoseDetector(),
     getProposalDetector(),
   ])
@@ -113,19 +102,9 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
   const vw = video.videoWidth
   const vh = video.videoHeight
 
-  const [predictions, proposalPoses] = await Promise.all([
-    // detect()'s own minScore defaults to 0.5, which would silently drop
-    // candidates before our own PERSON_SCORE_MIN filter ever saw them.
-    objectDetector.detect(video, 20, PERSON_SCORE_MIN),
-    proposalDetector.estimatePoses(video, { flipHorizontal: false }),
-  ])
+  const proposalPoses = await proposalDetector.estimatePoses(video, { flipHorizontal: false })
 
-  const ssdBoxes: BoxProposal[] = predictions
-    .filter((p) => p.class === 'person')
-    .map((p) => {
-      const [x, y, w, h] = p.bbox
-      return { x0: x, y0: y, x1: x + w, y1: y + h }
-    })
+  const yoloProposals: BoxProposal[] = yoloBoxes.map((b: YoloBox) => ({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }))
 
   // MultiPose's box output is normalized [0,1] (unlike its keypoints, which
   // the library already scales to pixel space) — scale it ourselves.
@@ -138,7 +117,7 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
       y1: p.box!.yMax * vh,
     }))
 
-  const people = dedupeBoxes([...ssdBoxes, ...poseBoxes])
+  const people = dedupeBoxes([...yoloProposals, ...poseBoxes])
 
   if (!cropCanvas) cropCanvas = document.createElement('canvas')
   cropCanvas.width = CROP_SIZE

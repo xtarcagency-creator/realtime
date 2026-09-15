@@ -2,7 +2,7 @@ import '@tensorflow/tfjs-backend-webgl'
 import * as tf from '@tensorflow/tfjs-core'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import type { DetectionQuality } from './types'
-import { estimateTopDownPoses, resetTopDownTracker } from './topDownPose'
+import { estimateTopDownPoses, resetTopDownTracker, preloadTopDownModels } from './topDownPose'
 
 export type Pose = poseDetection.Pose
 export type Detector = poseDetection.PoseDetector
@@ -63,6 +63,15 @@ export async function estimatePoses(video: HTMLVideoElement, quality: DetectionQ
 
 export function resetTracking() {
   resetTopDownTracker()
+}
+
+/** Start loading a quality tier's models ahead of the first frame that needs them. */
+export function preloadModels(quality: DetectionQuality) {
+  if (quality === 'high') {
+    preloadTopDownModels()
+  } else {
+    void getBottomUpDetector(quality)
+  }
 }
 
 export function keypoint(pose: Pose, name: string) {
