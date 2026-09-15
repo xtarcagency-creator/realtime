@@ -14,6 +14,7 @@ export interface Zone {
 
 export type ActivityLabel =
   | 'standing'
+  | 'sitting'
   | 'walking'
   | 'bending'
   | 'reaching'

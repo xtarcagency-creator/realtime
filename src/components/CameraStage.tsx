@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDetector } from '../lib/pose'
-import { classifyActivity, pushHistory } from '../lib/activity'
+import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import { pointInZone, LOITER_THRESHOLD_SEC } from '../lib/zones'
 import type { ActivityEvent, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
@@ -21,6 +21,7 @@ const SKELETON_EDGES: [string, string][] = [
 
 const ACTIVITY_COLORS: Record<string, string> = {
   standing: '#64748b',
+  sitting: '#0d9488',
   walking: '#2563eb',
   bending: '#b45309',
   reaching: '#7c3aed',
@@ -111,6 +112,7 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
         ctx.save()
         ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
         const seenIds = new Set<number>()
 
@@ -122,11 +124,10 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
           const prev = peopleRef.current.get(id)
           const activityRaw = classifyActivity(pose, prev)
 
-          const hip = pose.keypoints.find((k) => (k.name === 'left_hip' || k.name === 'right_hip') && (k.score ?? 0) > 0.3)
           const wristPoint = pose.keypoints
             .filter((k) => (k.name === 'left_wrist' || k.name === 'right_wrist') && (k.score ?? 0) > 0.3)
             .sort((a, b) => a.y - b.y)[0]
-          const centroid: Point = hip ? { x: hip.x, y: hip.y } : { x: pose.keypoints[0].x, y: pose.keypoints[0].y }
+          const centroid: Point = getCentroid(pose)
 
           const zoneDwell = { ...(prev?.zoneDwell ?? {}) }
           for (const zone of zonesRef.current) {
@@ -278,7 +279,12 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
 
   return (
     <div className="stage">
-      <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+      />
       <div className="stage-frame">
         <canvas
           ref={canvasRef}
@@ -287,10 +293,15 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
           onMouseUp={handleMouseUp}
           className={drawMode ? 'draw-cursor' : ''}
         />
-        {dragRect && (
+        {dragRect && canvasRef.current && (
           <div
             className="drag-preview"
-            style={{ left: dragRect.x, top: dragRect.y, width: dragRect.w, height: dragRect.h }}
+            style={{
+              left: `${(dragRect.x / canvasRef.current.width) * 100}%`,
+              top: `${(dragRect.y / canvasRef.current.height) * 100}%`,
+              width: `${(dragRect.w / canvasRef.current.width) * 100}%`,
+              height: `${(dragRect.h / canvasRef.current.height) * 100}%`,
+            }}
           />
         )}
         {status && <div className="stage-status">{status}</div>}
