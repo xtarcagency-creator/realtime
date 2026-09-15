@@ -5,10 +5,9 @@
 }
 
 .app-header {
-  padding: 14px 24px;
+  padding: 12px 24px;
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  box-shadow: var(--shadow-sm);
+  background: var(--header);
   position: relative;
   z-index: 1;
 }
@@ -54,8 +53,8 @@
 .layout {
   flex: 1;
   display: flex;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px;
   align-items: flex-start;
   justify-content: center;
   flex-wrap: wrap;
@@ -183,15 +182,14 @@
   width: 300px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px;
-  box-shadow: var(--shadow-sm);
+  padding: 12px 14px;
 }
 
 .panel-grow {
@@ -223,9 +221,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 7px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent);
   flex-shrink: 0;

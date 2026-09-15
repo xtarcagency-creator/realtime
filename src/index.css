@@ -1,26 +1,27 @@
 :root {
-  --bg: #0a0c11;
-  --panel: #12151c;
-  --panel-2: #1a1e28;
-  --panel-3: #22273353;
-  --border: #232733;
-  --border-strong: #323847;
-  --text: #b4bacc;
-  --text-h: #f4f6fb;
-  --muted: #737c8f;
-  --accent: #4f8cff;
-  --accent-soft: rgba(79, 140, 255, 0.14);
-  --warn: #f26161;
-  --warn-soft: rgba(242, 97, 97, 0.12);
-  --amber: #f0b94a;
-  --amber-soft: rgba(240, 185, 74, 0.12);
-  --good: #34d399;
-  --good-soft: rgba(52, 211, 153, 0.12);
+  --bg: #111112;
+  --header: #0a0a0b;
+  --panel: #18181a;
+  --panel-2: #1e1e21;
+  --panel-3: #24242753;
+  --border: #2a2a2d;
+  --border-strong: #3d3d41;
+  --text: #b3b3b6;
+  --text-h: #f0f0f1;
+  --muted: #77777b;
+  --accent: #ff7a30;
+  --accent-soft: rgba(255, 122, 48, 0.14);
+  --warn: #e0454a;
+  --warn-soft: rgba(224, 69, 74, 0.12);
+  --amber: #e0b93a;
+  --amber-soft: rgba(224, 185, 58, 0.12);
+  --good: #3fb87f;
+  --good-soft: rgba(63, 184, 127, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --radius: 14px;
-  --radius-sm: 9px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35);
+  --radius: 6px;
+  --radius-sm: 3px;
 
   font: 14px/1.5 -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: dark;
