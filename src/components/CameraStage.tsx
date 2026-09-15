@@ -5,8 +5,11 @@ import { pointInZone, LOITER_THRESHOLD_SEC } from '../lib/zones'
 import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
 import type { ActivityEvent, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
-const CANVAS_W = 1280
-const CANVAS_H = 720
+const CANVAS_W = 1920
+const CANVAS_H = 1080
+// Drawing sizes below were tuned at a 1280-wide reference canvas; scale them
+// with the actual canvas width so the overlay stays legible at any resolution.
+const DRAW_SCALE = CANVAS_W / 1280
 
 const SKELETON_EDGES: [string, string][] = [
   ['left_shoulder', 'right_shoulder'],
@@ -191,7 +194,7 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
           // draw skeleton
           const color = ACTIVITY_COLORS[activity] ?? '#94a3b8'
           ctx.strokeStyle = color
-          ctx.lineWidth = 3
+          ctx.lineWidth = 5 * DRAW_SCALE
           for (const [a, b] of SKELETON_EDGES) {
             const ka = pose.keypoints.find((k) => k.name === a)
             const kb = pose.keypoints.find((k) => k.name === b)
@@ -208,14 +211,20 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
             if ((k.score ?? 0) > 0.3) {
               const pk = mapPointCover(k, cover)
               ctx.beginPath()
-              ctx.arc(pk.x, pk.y, 3, 0, Math.PI * 2)
+              ctx.arc(pk.x, pk.y, 6 * DRAW_SCALE, 0, Math.PI * 2)
               ctx.fillStyle = color
               ctx.fill()
             }
           }
+          const label = `#${id} ${activity}`
+          ctx.font = `bold ${22 * DRAW_SCALE}px system-ui, sans-serif`
+          const labelX = canvasCentroid.x + 12 * DRAW_SCALE
+          const labelY = canvasCentroid.y - 14 * DRAW_SCALE
+          const labelW = ctx.measureText(label).width
+          ctx.fillStyle = 'rgba(0,0,0,0.55)'
+          ctx.fillRect(labelX - 6 * DRAW_SCALE, labelY - 22 * DRAW_SCALE, labelW + 12 * DRAW_SCALE, 30 * DRAW_SCALE)
           ctx.fillStyle = color
-          ctx.font = '14px system-ui, sans-serif'
-          ctx.fillText(`#${id} ${activity}`, canvasCentroid.x + 8, canvasCentroid.y - 8)
+          ctx.fillText(label, labelX, labelY)
         }
 
         for (const id of Array.from(peopleRef.current.keys())) {
@@ -227,12 +236,12 @@ export default function CameraStage({ source, zones, onZonesChange, onPeopleUpda
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
           ctx.strokeStyle = occupied ? '#dc2626' : '#2563eb'
           ctx.fillStyle = occupied ? 'rgba(220,38,38,0.1)' : 'rgba(37,99,235,0.08)'
-          ctx.lineWidth = 2
+          ctx.lineWidth = 3 * DRAW_SCALE
           ctx.strokeRect(zone.x, zone.y, zone.w, zone.h)
           ctx.fillRect(zone.x, zone.y, zone.w, zone.h)
           ctx.fillStyle = occupied ? '#dc2626' : '#2563eb'
-          ctx.font = '13px system-ui, sans-serif'
-          ctx.fillText(zone.label, zone.x + 6, zone.y + 16)
+          ctx.font = `bold ${18 * DRAW_SCALE}px system-ui, sans-serif`
+          ctx.fillText(zone.label, zone.x + 8 * DRAW_SCALE, zone.y + 24 * DRAW_SCALE)
         }
 
         ctx.restore()
