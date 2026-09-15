@@ -1,40 +1,27 @@
 # Realtime Human Activity Analyser
 
-A live, in-browser demo of multi-person pose tracking and zone-based behavior
-detection, built as a credibility/technology preview for **xtarc.agency**'s
-retail loss-prevention (shoplifting detection) proposal.
+Live, in-browser multi-person pose tracking and zone-based behavior
+detection. Runs entirely client-side (WebGL) — no backend, no GPU server,
+no video leaves the device.
 
-Everything runs client-side in the browser via WebGL — no backend, no GPU
-server, no video leaves the device. That makes it cheap to host and safe to
-embed as a live demo on the agency site.
-
-## What it shows
+## Features
 
 - **Multi-person detection & tracking** — MoveNet MultiPose (TensorFlow.js)
   detects every person in frame and assigns each a persistent ID across
-  frames (`enableTracking` + bounding-box tracker).
+  frames.
 - **Pose estimation** — 17-point skeleton per person, rendered live over the
-  camera feed.
-- **Heuristic activity classification** — per person, per frame: `standing`,
-  `walking`, `bending`, `reaching` (arm raised above shoulder), derived from
-  joint geometry and centroid velocity. This is a lightweight rule-based
-  classifier, not a trained action-recognition network — good enough for a
-  live demo, and the natural place to swap in a trained model later.
-- **Zones & dwell time** — draw a rectangle over the video (e.g. a "shelf" or
-  "aisle") and the app tracks how long each tracked person dwells inside it.
-  Dwelling past a threshold raises a `loitering` state and logs a
-  timestamped event — the same primitive a shoplifting system needs
-  (zone intrusion + dwell time + behavior), just demoed on generic footage.
+  video.
+- **Activity classification** — per person, per frame: `standing`,
+  `sitting`, `walking`, `bending`, `reaching`. Heuristic, derived from joint
+  geometry and centroid movement (not a trained action-recognition model).
+- **Zones & dwell time** — draw a rectangle over the video to mark a zone.
+  The app tracks how long each tracked person dwells inside it; dwelling
+  past a threshold raises a `loitering` state and logs a timestamped event.
+- **Camera or uploaded video** — analyse a live webcam feed or a video file.
 - **Live dashboard** — person count, FPS, per-person activity, zone list,
   and a scrolling event log.
-
-## Why this shape (vs. an exercise-rep counter)
-
-A fitness rep-counter is a neat toy but it's single-person, front-facing,
-and curated. This demo instead exercises the actual primitives a retail
-system needs — multi-person tracking, pose, zone dwell-time, and behavior
-flags — on arbitrary, messy footage, which is a much closer proof of
-capability for the shoplifting-detection pitch.
+- **Stop/start control** — release the camera or pause the video without
+  reloading the page.
 
 ## Running locally
 
@@ -43,65 +30,61 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL in a browser that has camera access (Chrome/Edge
-recommended for WebGL performance). Grant camera permission when prompted.
+Open the printed local URL in a browser with camera access (Chrome/Edge
+recommended for WebGL performance).
 
-- Click **Draw zone** in the sidebar, then drag on the video to mark a
-  zone (e.g. a shelf). Rename it inline.
-- Stand in the zone for 6+ seconds to trigger a `loitering` event in the log.
+- Click **Draw zone**, then drag on the video to mark a zone. Rename it
+  inline in the sidebar.
+- Stay in a zone for 6+ seconds to trigger a `loitering` event in the log.
 - Raise a hand above shoulder height to see `reaching` detected.
+- Use **Upload video** to run detection against a video file instead of the
+  camera.
 
-## Building & embedding
+## Building & deploying
 
 ```bash
 npm run build
 ```
 
-Outputs a static site to `dist/`. This repo ships a `netlify.toml`
-(build command `npm run build`, publish dir `dist`, plus a permissive
-`Permissions-Policy` header for camera access), so on Netlify:
+Outputs a static site to `dist/`. `netlify.toml` is included (build command
+`npm run build`, publish dir `dist`, plus a `Permissions-Policy` header for
+camera access), so on Netlify: **New site from Git** → connect this
+repo/branch — build settings are picked up automatically.
 
-1. **New site from Git** → connect this repo/branch. Build command and
-   publish directory are picked up automatically from `netlify.toml`.
-2. Netlify gives you a free `*.netlify.app` HTTPS URL immediately; point a
-   subdomain (e.g. `demo.xtarc.agency`) at it via CNAME if you want a
-   branded URL for the embed.
-
-Then embed it on xtarc.agency as an iframe:
+To embed it elsewhere (e.g. an iframe):
 
 ```html
 <iframe
   src="https://<your-deployed-domain>/"
   allow="camera"
-  style="width:100%; aspect-ratio:16/10; border:0; border-radius:12px;"
+  style="width:100%; aspect-ratio:16/9; border:0; border-radius:12px;"
 ></iframe>
 ```
 
-The `allow="camera"` attribute is required for the embedded page to request
-webcam access from within an iframe, and the embedding page must be served
-over HTTPS (camera access requires a secure context).
+`allow="camera"` is required for the embedded page to request webcam access
+from within an iframe, and the embedding page must be served over HTTPS
+(camera access requires a secure context).
 
-## Notes / limitations
+## Architecture
 
-- Requires a browser with webcam + WebGL support; this demo has been
-  typechecked, linted, and build-verified in this environment, but the
-  actual webcam pipeline needs to be exercised in a real browser (this
-  sandbox has no camera) before presenting it live — please do a quick
-  run-through beforehand.
-- The activity classifier is intentionally simple/heuristic for real-time
-  performance; a production shoplifting system would layer a trained
-  action/behavior model and multi-camera re-identification on top of the
-  same tracking + zone primitives shown here.
+- `src/lib/pose.ts` — loads the MoveNet MultiPose detector (tracking
+  enabled) via TensorFlow.js.
+- `src/lib/activity.ts` — heuristic activity classifier + shared centroid
+  helper.
+- `src/lib/coverMap.ts` — maps arbitrary camera/video resolutions onto the
+  fixed 16:9 canvas (object-fit: cover style crop).
+- `src/lib/zones.ts` — zone/dwell-time helpers.
+- `src/components/CameraStage.tsx` — capture, detection loop, drawing, zone
+  drawing UI.
+- `src/components/Dashboard.tsx` — live stats sidebar.
 
-## Roadmap toward the shoplifting-detection product
+## Limitations
 
-1. Swap the heuristic classifier for a trained action-recognition model
-   (e.g. a lightweight temporal model over pose sequences).
-2. Add concealment-relevant cues: hand-to-shelf, hand-to-bag/pocket,
-   item-in-hand disappearance.
-3. Multi-camera re-identification so a tracked person persists across
-   camera handoffs within a store.
-4. Store-side deployment: edge inference (on-prem GPU/NPU) instead of
-   browser WebGL, with an alerting/review dashboard for staff.
-5. Privacy/compliance layer: on-device processing, configurable retention,
-   and audit logging per store's jurisdiction.
+- Requires a browser with webcam + WebGL support.
+- The activity classifier is a lightweight rule-based heuristic for
+  real-time performance, not a trained action-recognition model — it reads
+  joint geometry (raised wrist, torso compression, movement over time), not
+  learned behavior patterns.
+- No re-identification: if a tracked person leaves and re-enters frame,
+  they get a new ID.
+- Single camera only — no multi-camera handoff.
