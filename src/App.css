@@ -99,6 +99,26 @@
   aspect-ratio: 16 / 9;
 }
 
+.video-scrubber {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.scrub-range {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.scrub-time {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .stage-frame canvas {
   display: block;
   max-width: 100%;

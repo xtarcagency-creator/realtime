@@ -12,8 +12,8 @@ export type Detector = poseDetection.PoseDetector
 // the cost of latency. Must be a multiple of 32.
 const QUALITY_DIMENSION: Record<DetectionQuality, number> = {
   fast: 256,
-  balanced: 320,
-  high: 480,
+  balanced: 384,
+  high: 512, // top of the model's recommended range (128-512)
 }
 
 let current: { quality: DetectionQuality; detector: Promise<Detector> } | null = null
@@ -29,6 +29,10 @@ export function getDetector(quality: DetectionQuality): Promise<Detector> {
         enableTracking: true,
         trackerType: poseDetection.TrackerType.BoundingBox,
         multiPoseMaxDimension: QUALITY_DIMENSION[quality],
+        // Default is 0.25 — lower so a second, less-confident person (partially
+        // occluded, smaller in frame) still gets included as a detection at all;
+        // our own per-keypoint score filtering still hides noisy joints.
+        minPoseScore: 0.15,
       })
       if (prevPromise) {
         const prevDetector = await prevPromise

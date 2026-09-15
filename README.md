@@ -18,10 +18,12 @@ no video leaves the device.
   (any shape, not just rectangles). The app tracks how long each tracked
   person dwells inside it; dwelling past a threshold raises a `loitering`
   state, logs a timestamped event, and flashes the video border.
-- **Camera or uploaded video** — analyse a live webcam feed or a video file.
+- **Camera or uploaded video** — analyse a live webcam feed or a video
+  file, with play/pause/seek controls for uploaded video.
 - **Detection quality control** — Fast / Balanced / High, trading pose
-  model input resolution for FPS (useful on slower hardware or for
-  catching smaller/farther people).
+  model input resolution for FPS. Multi-person detection accuracy
+  depends heavily on this: CCTV-style footage with smaller/farther/more
+  people needs a higher setting than a close-up webcam demo.
 - **Frame capture** — save the current canvas (video + overlay) as a PNG.
 - **Overlay toggle** — Full (skeleton + labels) or Minimal (just a marker +
   labels), for a cleaner view when someone's watching over your shoulder.
@@ -48,7 +50,11 @@ recommended for WebGL performance).
   entry and a red flash on the video.
 - Raise a hand above shoulder height to see `reaching` detected.
 - Use **Upload video** to run detection against a video file instead of the
-  camera.
+  camera — use the play/pause button and scrub bar under the video to jump
+  to a specific moment; scrubbing while paused still redraws the frame.
+- If it's only catching one person on a video with several, switch
+  **Detection quality** to High — the model resolves multiple/smaller
+  people much better at higher input resolution.
 - Use **Capture frame** to download the current view (video + skeleton +
   zones) as a PNG.
 
@@ -96,6 +102,10 @@ from within an iframe, and the embedding page must be served over HTTPS
 ## Limitations
 
 - Requires a browser with webcam + WebGL support.
+- MoveNet MultiPose Lightning can detect up to 6 people, but accuracy on
+  smaller/farther/closely-grouped people (typical of CCTV-style footage)
+  is meaningfully worse than on a close, well-lit webcam subject —
+  raise Detection quality if it's missing people.
 - The activity classifier is a lightweight rule-based heuristic for
   real-time performance, not a trained action-recognition model — it reads
   joint geometry (raised wrist, torso compression, movement over time), not

@@ -69,6 +69,9 @@ export default function CameraStage({
   const [draftPoints, setDraftPoints] = useState<Point[]>([])
   const [cursorPos, setCursorPos] = useState<Point | null>(null)
   const [overlayMode, setOverlayMode] = useState<OverlayMode>('full')
+  const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [videoPlaying, setVideoPlaying] = useState(true)
 
   useEffect(() => {
     zonesRef.current = zones
@@ -112,6 +115,7 @@ export default function CameraStage({
     let lastFrameTime = performance.now()
     let frameCount = 0
     let fpsTimer = performance.now()
+    let detachPlaybackListeners: (() => void) | null = null
 
     async function start() {
       const video = videoRef.current!
@@ -157,6 +161,30 @@ export default function CameraStage({
       const cover = computeCoverTransform(video.videoWidth, video.videoHeight, CANVAS_W, CANVAS_H)
 
       setStatus('')
+
+      if (source.kind === 'upload') {
+        const handleTimeUpdate = () => setCurrentTime(video.currentTime)
+        const handlePlay = () => setVideoPlaying(true)
+        const handlePause = () => setVideoPlaying(false)
+        const handleSeeked = () => {
+          // redraw immediately so scrubbing while paused is visible, not just a frozen frame
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          ctx.drawImage(video, cover.sx, cover.sy, cover.sw, cover.sh, 0, 0, canvas.width, canvas.height)
+        }
+        video.addEventListener('timeupdate', handleTimeUpdate)
+        video.addEventListener('play', handlePlay)
+        video.addEventListener('pause', handlePause)
+        video.addEventListener('seeked', handleSeeked)
+        setDuration(video.duration || 0)
+        setCurrentTime(video.currentTime)
+        setVideoPlaying(!video.paused)
+        detachPlaybackListeners = () => {
+          video.removeEventListener('timeupdate', handleTimeUpdate)
+          video.removeEventListener('play', handlePlay)
+          video.removeEventListener('pause', handlePause)
+          video.removeEventListener('seeked', handleSeeked)
+        }
+      }
 
       const loop = async () => {
         if (stopped) return
@@ -324,6 +352,7 @@ export default function CameraStage({
     return () => {
       stopped = true
       cancelAnimationFrame(raf)
+      detachPlaybackListeners?.()
       stream?.getTracks().forEach((t) => t.stop())
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
@@ -379,6 +408,28 @@ export default function CameraStage({
       a.remove()
       URL.revokeObjectURL(url)
     }, 'image/png')
+  }
+
+  function togglePlayPause() {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) video.play()
+    else video.pause()
+  }
+
+  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
+    const video = videoRef.current
+    if (!video) return
+    const t = Number(e.target.value)
+    video.currentTime = t
+    setCurrentTime(t)
+  }
+
+  function formatTime(t: number) {
+    if (!Number.isFinite(t)) return '0:00'
+    const m = Math.floor(t / 60)
+    const s = Math.floor(t % 60)
+    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   const draftLine = cursorPos ? [...draftPoints, cursorPos] : draftPoints
@@ -442,6 +493,25 @@ export default function CameraStage({
         {alertPulse > 0 && <div key={alertPulse} className="alert-flash" />}
         {status && <div className="stage-status">{status}</div>}
       </div>
+      {source.kind === 'upload' && running && (
+        <div className="video-scrubber">
+          <button className="btn" onClick={togglePlayPause}>
+            {videoPlaying ? 'Pause' : 'Play'}
+          </button>
+          <input
+            type="range"
+            className="scrub-range"
+            min={0}
+            max={duration || 0}
+            step={0.1}
+            value={currentTime}
+            onChange={handleSeek}
+          />
+          <span className="scrub-time">
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
