@@ -19,6 +19,8 @@ interface Props {
   quality: DetectionQuality
   onQualityChange: (quality: DetectionQuality) => void
   onExportEvents: () => void
+  loiterThresholdSec: number
+  onLoiterThresholdChange: (sec: number) => void
 }
 
 export default function Dashboard({
@@ -34,6 +36,8 @@ export default function Dashboard({
   quality,
   onQualityChange,
   onExportEvents,
+  loiterThresholdSec,
+  onLoiterThresholdChange,
 }: Props) {
   return (
     <aside className="dashboard">
@@ -65,7 +69,9 @@ export default function Dashboard({
           ))}
         </div>
         <div className="empty" style={{ marginTop: 8 }}>
-          Higher quality catches smaller/farther people better, at a lower FPS.
+          Fast/Balanced scan the whole frame at once. High switches to a per-person pipeline (detect each person,
+          then a sharper pose model on just their crop) — much better for small, close, or overlapping people
+          (e.g. CCTV footage), at a real FPS cost.
         </div>
       </div>
 
@@ -78,6 +84,26 @@ export default function Dashboard({
             </button>
             <button className="btn" onClick={onClearZones} disabled={!zones.length}>
               Clear
+            </button>
+          </div>
+        </div>
+        <div className="loiter-control">
+          <span className="loiter-label">Loiter threshold</span>
+          <div className="stepper">
+            <button
+              className="btn"
+              onClick={() => onLoiterThresholdChange(Math.max(2, loiterThresholdSec - 2))}
+              aria-label="Decrease loiter threshold"
+            >
+              −
+            </button>
+            <span className="stepper-value">{loiterThresholdSec}s</span>
+            <button
+              className="btn"
+              onClick={() => onLoiterThresholdChange(Math.min(60, loiterThresholdSec + 2))}
+              aria-label="Increase loiter threshold"
+            >
+              +
             </button>
           </div>
         </div>
@@ -129,7 +155,7 @@ export default function Dashboard({
             Export CSV
           </button>
         </div>
-        {!events.length && <div className="empty">Events (loitering, zone interactions) appear here.</div>}
+        {!events.length && <div className="empty">Events (lingering, loitering) appear here.</div>}
         <ul className="event-list">
           {events.map((e) => (
             <li key={e.id} className={e.level}>

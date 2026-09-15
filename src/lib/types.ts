@@ -15,6 +15,7 @@ export type ActivityLabel =
   | 'walking'
   | 'bending'
   | 'reaching'
+  | 'lingering'
   | 'loitering'
 
 export interface TrackedPerson {
@@ -24,6 +25,8 @@ export interface TrackedPerson {
   activity: ActivityLabel
   lastSeen: number
   zoneDwell: Record<string, number>
+  /** ms timestamp a person was last confirmed inside each zone — drives the exit grace period. */
+  zoneLastInside: Record<string, number>
   history: Point[]
 }
 

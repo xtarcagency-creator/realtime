@@ -315,6 +315,40 @@
   color: var(--warn);
 }
 
+.loiter-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
+.loiter-label {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper .btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepper-value {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  text-align: center;
+}
+
 .people-list li {
   display: flex;
   align-items: center;
@@ -332,6 +366,11 @@
 
 .activity-label {
   text-transform: capitalize;
+}
+
+.activity-lingering .activity-label {
+  color: #d97706;
+  font-weight: 600;
 }
 
 .activity-loitering .activity-label {
@@ -356,6 +395,10 @@
 
 .event-list li.warning {
   border-left: 2px solid var(--warn);
+}
+
+.event-list li.info {
+  border-left: 2px solid #d97706;
 }
 
 .event-time {

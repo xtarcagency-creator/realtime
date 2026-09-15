@@ -2,25 +2,27 @@ import '@tensorflow/tfjs-backend-webgl'
 import * as tf from '@tensorflow/tfjs-core'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import type { DetectionQuality } from './types'
+import { estimateTopDownPoses, resetTopDownTracker } from './topDownPose'
 
 export type Pose = poseDetection.Pose
 export type Detector = poseDetection.PoseDetector
 
-// MoveNet MultiPose only ships one model (Lightning); the real speed/accuracy
-// knob it exposes is multiPoseMaxDimension — the size input frames are scaled
-// to before inference. Higher catches smaller/more distant people better, at
-// the cost of latency. Must be a multiple of 32.
-const QUALITY_DIMENSION: Record<DetectionQuality, number> = {
+type BottomUpQuality = 'fast' | 'balanced'
+
+// Fast/Balanced use MoveNet MultiPose (one pass over the whole frame — cheap,
+// good for a live webcam demo). The real speed/accuracy knob it exposes is
+// multiPoseMaxDimension, the size input frames are scaled to before
+// inference. Must be a multiple of 32.
+const QUALITY_DIMENSION: Record<BottomUpQuality, number> = {
   fast: 256,
   balanced: 384,
-  high: 512, // top of the model's recommended range (128-512)
 }
 
-let current: { quality: DetectionQuality; detector: Promise<Detector> } | null = null
+let bottomUpCurrent: { quality: BottomUpQuality; detector: Promise<Detector> } | null = null
 
-export function getDetector(quality: DetectionQuality): Promise<Detector> {
-  if (!current || current.quality !== quality) {
-    const prevPromise = current?.detector ?? null
+function getBottomUpDetector(quality: BottomUpQuality): Promise<Detector> {
+  if (!bottomUpCurrent || bottomUpCurrent.quality !== quality) {
+    const prevPromise = bottomUpCurrent?.detector ?? null
     const nextPromise = (async () => {
       await tf.setBackend('webgl')
       await tf.ready()
@@ -40,9 +42,27 @@ export function getDetector(quality: DetectionQuality): Promise<Detector> {
       }
       return detector
     })()
-    current = { quality, detector: nextPromise }
+    bottomUpCurrent = { quality, detector: nextPromise }
   }
-  return current.detector
+  return bottomUpCurrent.detector
+}
+
+/**
+ * Fast/Balanced: single-pass MoveNet MultiPose over the whole frame.
+ * High: top-down pipeline (person detector + per-person crop through MoveNet
+ * Thunder) — much more accurate when people are small, close together, or
+ * overlapping (e.g. low-res CCTV-style footage), at a real FPS cost.
+ */
+export async function estimatePoses(video: HTMLVideoElement, quality: DetectionQuality): Promise<Pose[]> {
+  if (quality === 'high') {
+    return estimateTopDownPoses(video)
+  }
+  const detector = await getBottomUpDetector(quality)
+  return detector.estimatePoses(video, { flipHorizontal: false })
+}
+
+export function resetTracking() {
+  resetTopDownTracker()
 }
 
 export function keypoint(pose: Pose, name: string) {

@@ -23,6 +23,13 @@ export function zoneCentroid(z: Zone): Point {
   }
 }
 
-export const LOITER_THRESHOLD_SEC = 6
+export const DEFAULT_LOITER_THRESHOLD_SEC = 6
+// "Lingering" (a softer, informational signal) fires at this fraction of the
+// full loitering threshold, so there's a graded warning before the hard alert.
+export const LINGER_THRESHOLD_RATIO = 0.5
+// A person briefly leaving a zone (detection flicker, a quick step out and
+// back, momentary occlusion) shouldn't reset accumulated dwell time to zero —
+// only reset once they've been continuously outside the zone longer than this.
+export const ZONE_EXIT_GRACE_SEC = 1.5
 export const MIN_ZONE_POINTS = 3
 export const CLOSE_POINT_RADIUS_PX = 18

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDetector, type Detector } from '../lib/pose'
+import { estimatePoses, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
-import { pointInZone, zoneCentroid, LOITER_THRESHOLD_SEC, MIN_ZONE_POINTS, CLOSE_POINT_RADIUS_PX } from '../lib/zones'
+import {
+  pointInZone,
+  zoneCentroid,
+  LINGER_THRESHOLD_RATIO,
+  ZONE_EXIT_GRACE_SEC,
+  MIN_ZONE_POINTS,
+  CLOSE_POINT_RADIUS_PX,
+} from '../lib/zones'
 import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
 import type { ActivityEvent, DetectionQuality, OverlayMode, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
@@ -32,6 +39,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   walking: '#2563eb',
   bending: '#b45309',
   reaching: '#7c3aed',
+  lingering: '#d97706',
   loitering: '#dc2626',
 }
 
@@ -45,6 +53,7 @@ interface Props {
   drawMode: boolean
   quality: DetectionQuality
   alertPulse: number
+  loiterThresholdSec: number
 }
 
 export default function CameraStage({
@@ -57,12 +66,14 @@ export default function CameraStage({
   drawMode,
   quality,
   alertPulse,
+  loiterThresholdSec,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const peopleRef = useRef<Map<number, TrackedPerson>>(new Map())
   const zonesRef = useRef(zones)
-  const detectorRef = useRef<Detector | null>(null)
+  const qualityRef = useRef(quality)
+  const loiterThresholdRef = useRef(loiterThresholdSec)
   const overlayModeRef = useRef<OverlayMode>('full')
   const [status, setStatus] = useState('Starting…')
   const [running, setRunning] = useState(true)
@@ -81,23 +92,19 @@ export default function CameraStage({
     overlayModeRef.current = overlayMode
   }, [overlayMode])
 
+  useEffect(() => {
+    qualityRef.current = quality
+  }, [quality])
+
+  useEffect(() => {
+    loiterThresholdRef.current = loiterThresholdSec
+  }, [loiterThresholdSec])
+
   // Restart the feed (camera re-request or upload re-play) whenever the source changes.
   useEffect(() => {
     setRunning(true)
+    resetTracking()
   }, [source])
-
-  // Load (or swap) the pose model independently of the camera/video pipeline,
-  // so changing quality doesn't interrupt the live feed.
-  useEffect(() => {
-    let cancelled = false
-    detectorRef.current = null
-    getDetector(quality).then((detector) => {
-      if (!cancelled) detectorRef.current = detector
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [quality])
 
   // Leaving draw mode (or switching source) clears any in-progress zone.
   useEffect(() => {
@@ -192,16 +199,11 @@ export default function CameraStage({
           raf = requestAnimationFrame(loop)
           return
         }
-        const detector = detectorRef.current
-        if (!detector) {
-          raf = requestAnimationFrame(loop)
-          return
-        }
         const now = performance.now()
         const dt = (now - lastFrameTime) / 1000
         lastFrameTime = now
 
-        const poses = await detector.estimatePoses(video, { flipHorizontal: false })
+        const poses = await estimatePoses(video, qualityRef.current)
 
         ctx.save()
         ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -225,29 +227,49 @@ export default function CameraStage({
           const centroid: Point = getCentroid(pose)
           const canvasCentroid = mapPointCover(centroid, cover)
 
+          const loiterSec = loiterThresholdRef.current
+          const lingerSec = loiterSec * LINGER_THRESHOLD_RATIO
           const zoneDwell = { ...(prev?.zoneDwell ?? {}) }
+          const zoneLastInside = { ...(prev?.zoneLastInside ?? {}) }
           for (const zone of zonesRef.current) {
             const inside = pointInZone(canvasCentroid, zone)
             const key = zone.id
+            const before = zoneDwell[key] ?? 0
             if (inside) {
-              const before = zoneDwell[key] ?? 0
               zoneDwell[key] = before + dt
-              if (before < LOITER_THRESHOLD_SEC && zoneDwell[key] >= LOITER_THRESHOLD_SEC) {
+              zoneLastInside[key] = now
+              if (before < lingerSec && zoneDwell[key] >= lingerSec) {
+                onEvent({
+                  id: `${Date.now()}-${id}-${key}-linger`,
+                  timestamp: Date.now(),
+                  personId: id,
+                  message: `Person ${id} lingering in "${zone.label}"`,
+                  level: 'info',
+                })
+              }
+              if (before < loiterSec && zoneDwell[key] >= loiterSec) {
                 onEvent({
                   id: `${Date.now()}-${id}-${key}`,
                   timestamp: Date.now(),
                   personId: id,
-                  message: `Person ${id} loitering in "${zone.label}" (${LOITER_THRESHOLD_SEC}s+)`,
+                  message: `Person ${id} loitering in "${zone.label}" (${loiterSec}s+)`,
                   level: 'warning',
                 })
               }
             } else {
-              zoneDwell[key] = 0
+              const lastInside = zoneLastInside[key] ?? 0
+              const sinceLeftSec = (now - lastInside) / 1000
+              if (sinceLeftSec > ZONE_EXIT_GRACE_SEC) {
+                zoneDwell[key] = 0
+                zoneLastInside[key] = 0
+              }
+              // else: briefly outside (flicker/occlusion) — hold dwell steady until grace expires
             }
           }
 
-          const anyLoitering = Object.values(zoneDwell).some((v) => v >= LOITER_THRESHOLD_SEC)
-          const activity = anyLoitering ? 'loitering' : activityRaw
+          const anyLoitering = Object.values(zoneDwell).some((v) => v >= loiterSec)
+          const anyLingering = Object.values(zoneDwell).some((v) => v >= lingerSec)
+          const activity = anyLoitering ? 'loitering' : anyLingering ? 'lingering' : activityRaw
 
           const history = pushHistory(prev?.history ?? [], centroid)
 
@@ -258,6 +280,7 @@ export default function CameraStage({
             activity,
             lastSeen: now,
             zoneDwell,
+            zoneLastInside,
             history,
           }
           peopleRef.current.set(id, person)

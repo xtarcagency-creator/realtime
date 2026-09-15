@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import CameraStage from './components/CameraStage'
 import Dashboard from './components/Dashboard'
 import type { ActivityEvent, DetectionQuality, Source, TrackedPerson, Zone } from './lib/types'
-import { MIN_ZONE_POINTS } from './lib/zones'
+import { DEFAULT_LOITER_THRESHOLD_SEC, MIN_ZONE_POINTS } from './lib/zones'
 import './App.css'
 
 const MAX_EVENTS = 50
@@ -30,6 +30,7 @@ function App() {
   const [drawMode, setDrawMode] = useState(false)
   const [quality, setQuality] = useState<DetectionQuality>('balanced')
   const [alertPulse, setAlertPulse] = useState(0)
+  const [loiterThresholdSec, setLoiterThresholdSec] = useState(DEFAULT_LOITER_THRESHOLD_SEC)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -131,6 +132,7 @@ function App() {
           drawMode={drawMode}
           quality={quality}
           alertPulse={alertPulse}
+          loiterThresholdSec={loiterThresholdSec}
         />
         <Dashboard
           people={people}
@@ -145,6 +147,8 @@ function App() {
           quality={quality}
           onQualityChange={setQuality}
           onExportEvents={exportEventsCsv}
+          loiterThresholdSec={loiterThresholdSec}
+          onLoiterThresholdChange={setLoiterThresholdSec}
         />
       </main>
     </div>

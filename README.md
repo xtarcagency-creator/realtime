@@ -6,24 +6,33 @@ no video leaves the device.
 
 ## Features
 
-- **Multi-person detection & tracking** — MoveNet MultiPose (TensorFlow.js)
-  detects every person in frame and assigns each a persistent ID across
-  frames.
+- **Multi-person detection & tracking** — every person in frame gets a
+  persistent ID across frames. Fast/Balanced use MoveNet MultiPose
+  (one pass over the whole frame — cheap). High switches to a top-down
+  pipeline: a person detector (COCO-SSD) finds each person's box, then
+  MoveNet Thunder runs pose estimation on just that person's own cropped,
+  upscaled region. Bottom-up multi-pose models can't cleanly separate
+  people who are small, close together, or overlapping (a single
+  "person center" heatmap can't split them) — the top-down pipeline
+  fixes exactly that, which is what low-res CCTV-style footage needs.
 - **Pose estimation** — 17-point skeleton per person, rendered live over the
   video.
 - **Activity classification** — per person, per frame: `standing`,
   `sitting`, `walking`, `bending`, `reaching`. Heuristic, derived from joint
   geometry and centroid movement (not a trained action-recognition model).
 - **Zones & dwell time** — draw a polygon over the video to mark a zone
-  (any shape, not just rectangles). The app tracks how long each tracked
-  person dwells inside it; dwelling past a threshold raises a `loitering`
-  state, logs a timestamped event, and flashes the video border.
+  (any shape, not just rectangles). Dwelling past half the loiter threshold
+  raises a soft `lingering` state (logged, no flash); crossing the full
+  threshold raises `loitering` (logged + a red flash on the video). A
+  brief exit from a zone (detection flicker, stepping out and back) doesn't
+  reset the timer — only a continuous 1.5s+ outside the zone does. The
+  loiter threshold is adjustable in the sidebar (Zones panel).
 - **Camera or uploaded video** — analyse a live webcam feed or a video
   file, with play/pause/seek controls for uploaded video.
-- **Detection quality control** — Fast / Balanced / High, trading pose
-  model input resolution for FPS. Multi-person detection accuracy
-  depends heavily on this: CCTV-style footage with smaller/farther/more
-  people needs a higher setting than a close-up webcam demo.
+- **Detection quality control** — Fast / Balanced / High. Multi-person
+  accuracy depends heavily on this: CCTV-style footage with
+  smaller/closer-together/overlapping people needs High (the top-down
+  pipeline), not just a close-up webcam demo.
 - **Frame capture** — save the current canvas (video + overlay) as a PNG.
 - **Overlay toggle** — Full (skeleton + labels) or Minimal (just a marker +
   labels), for a cleaner view when someone's watching over your shoulder.
@@ -46,8 +55,10 @@ recommended for WebGL performance).
 - Click **Draw zone**, then click to place each corner of a zone (3+
   points); click the first point again, or hit **Finish zone**, to close
   it. Rename or delete zones inline in the sidebar.
-- Stay in a zone for 6+ seconds to trigger a `loitering` event — the log
-  entry and a red flash on the video.
+- Stay in a zone past the loiter threshold (6s by default, adjustable in
+  the Zones panel) to trigger a `loitering` event — the log entry and a
+  red flash on the video. Half that time raises a softer `lingering` event
+  first (log only).
 - Raise a hand above shoulder height to see `reaching` detected.
 - Use **Upload video** to run detection against a video file instead of the
   camera — use the play/pause button and scrub bar under the video to jump
@@ -85,27 +96,41 @@ from within an iframe, and the embedding page must be served over HTTPS
 
 ## Architecture
 
-- `src/lib/pose.ts` — loads the MoveNet MultiPose detector (tracking
-  enabled), keyed by `DetectionQuality` (adjusts `multiPoseMaxDimension`);
-  disposes the old model when quality changes.
+- `src/lib/pose.ts` — unified `estimatePoses(video, quality)`: routes to
+  the bottom-up MoveNet MultiPose detector (fast/balanced) or the
+  top-down pipeline (high). Caches/disposes models as quality changes.
+- `src/lib/topDownPose.ts` — the top-down pipeline: COCO-SSD person
+  detection → square padded crop per person → MoveNet Thunder per crop →
+  map keypoints back to full-frame coordinates → `CentroidTracker` for
+  persistent IDs (this path has no built-in tracker, unlike MultiPose).
+- `src/lib/tracker.ts` — minimal nearest-centroid tracker used by the
+  top-down pipeline.
 - `src/lib/activity.ts` — heuristic activity classifier + shared centroid
   helper.
 - `src/lib/coverMap.ts` — maps arbitrary camera/video resolutions onto the
   fixed 16:9 canvas (object-fit: cover style crop).
-- `src/lib/zones.ts` — polygon point-in-zone test, zone centroid, dwell
-  constants.
+- `src/lib/zones.ts` — polygon point-in-zone test, zone centroid, dwell/
+  lingering/exit-grace constants.
 - `src/components/CameraStage.tsx` — capture, detection loop, drawing,
-  polygon zone-drawing UI, frame capture, loitering flash.
+  polygon zone-drawing UI, frame capture, lingering/loitering + exit
+  grace logic, loitering flash.
 - `src/components/Dashboard.tsx` — live stats sidebar, detection quality
-  control, zone list.
+  control, loiter threshold control, zone list.
 
 ## Limitations
 
 - Requires a browser with webcam + WebGL support.
-- MoveNet MultiPose Lightning can detect up to 6 people, but accuracy on
-  smaller/farther/closely-grouped people (typical of CCTV-style footage)
-  is meaningfully worse than on a close, well-lit webcam subject —
-  raise Detection quality if it's missing people.
+- Fast/Balanced (MoveNet MultiPose) can detect up to 6 people, but
+  accuracy on smaller/farther/closely-grouped people (typical of
+  CCTV-style footage) is meaningfully worse than on a close, well-lit
+  webcam subject. High's top-down pipeline handles that case far better
+  but costs real FPS (a person detector pass + one pose pass *per
+  person*, per frame) — still a lightweight, in-browser model, not the
+  accuracy of a heavy server-side detector, so very low-res or very
+  crowded footage still has a real ceiling.
+- Switching Detection quality mid-session gives everyone new tracking
+  IDs (fast/balanced and high use independent tracking, so identity
+  doesn't carry across the switch).
 - The activity classifier is a lightweight rule-based heuristic for
   real-time performance, not a trained action-recognition model — it reads
   joint geometry (raised wrist, torso compression, movement over time), not
