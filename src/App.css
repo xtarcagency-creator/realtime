@@ -19,14 +19,7 @@
 }
 
 .brand-block {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   min-width: 0;
-}
-
-.logo-mark {
-  flex-shrink: 0;
 }
 
 .brand {
