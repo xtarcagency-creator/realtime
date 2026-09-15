@@ -57,9 +57,17 @@ recommended for WebGL performance). Grant camera permission when prompted.
 npm run build
 ```
 
-Outputs a static site to `dist/`. Deploy it to any static host (Vercel,
-Netlify, GitHub Pages, Cloudflare Pages) and embed it on xtarc.agency as an
-iframe, e.g.:
+Outputs a static site to `dist/`. This repo ships a `netlify.toml`
+(build command `npm run build`, publish dir `dist`, plus a permissive
+`Permissions-Policy` header for camera access), so on Netlify:
+
+1. **New site from Git** → connect this repo/branch. Build command and
+   publish directory are picked up automatically from `netlify.toml`.
+2. Netlify gives you a free `*.netlify.app` HTTPS URL immediately; point a
+   subdomain (e.g. `demo.xtarc.agency`) at it via CNAME if you want a
+   branded URL for the embed.
+
+Then embed it on xtarc.agency as an iframe:
 
 ```html
 <iframe
