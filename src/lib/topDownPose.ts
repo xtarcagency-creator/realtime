@@ -170,6 +170,9 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
     rawPoses.push({ keypoints, centroid })
   }
 
-  const ids = tracker.update(rawPoses.map((p) => p.centroid))
+  const ids = tracker.update(
+    rawPoses.map((p) => p.centroid),
+    performance.now(),
+  )
   return rawPoses.map((p, i) => ({ id: ids[i], keypoints: p.keypoints }))
 }

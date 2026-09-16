@@ -30,6 +30,11 @@ function getBottomUpDetector(quality: BottomUpQuality): Promise<Detector> {
         modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
         enableTracking: true,
         trackerType: poseDetection.TrackerType.BoundingBox,
+        // Default maxAge is 1000ms — raised to match the top-down pipeline's own
+        // tracker (see tracker.ts) so a person briefly occluded or missed for a
+        // frame doesn't get a new id (and a reset loiter timer) regardless of
+        // which detection quality tier is active.
+        trackerConfig: { maxTracks: 18, maxAge: 1200, minSimilarity: 0.15, boundingBoxTrackerParams: {} },
         multiPoseMaxDimension: QUALITY_DIMENSION[quality],
         // Default is 0.25 — lower so a second, less-confident person (partially
         // occluded, smaller in frame) still gets included as a detection at all;

@@ -17,6 +17,13 @@ import type { ActivityEvent, DetectionQuality, OverlayMode, Point, Source, Track
 
 const CANVAS_W = 1920
 const CANVAS_H = 1080
+// A person can go briefly undetected (occlusion, a confidence dip, motion
+// blur) well within the tracker's own missed-frame tolerance, which still
+// recognizes them by the same id if they reappear. Wall-clock (not
+// frame-count) grace before dropping their zone-dwell state, so a single
+// missed detection doesn't wipe a loiter timer that the tracker itself
+// hasn't given up on.
+const STALE_PERSON_GRACE_MS = 1200
 // Drawing sizes below were tuned at a 1280-wide reference canvas; scale them
 // with the actual canvas width so the overlay stays legible at any resolution.
 const DRAW_SCALE = CANVAS_W / 1280
@@ -347,8 +354,10 @@ export default function CameraStage({
           ctx.fillText(label, labelX, labelY)
         }
 
-        for (const id of Array.from(peopleRef.current.keys())) {
-          if (!seenIds.has(id)) peopleRef.current.delete(id)
+        for (const [id, person] of Array.from(peopleRef.current)) {
+          if (!seenIds.has(id) && now - person.lastSeen > STALE_PERSON_GRACE_MS) {
+            peopleRef.current.delete(id)
+          }
         }
 
         // draw zones
