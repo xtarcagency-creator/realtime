@@ -58,6 +58,11 @@ no video leaves the device.
   reloading the page.
 - Zones persist across reloads (localStorage).
 
+## Pages
+
+- `/` — a short landing page describing the project.
+- `/app` — the live dashboard (camera/video, detection, zones, event log).
+
 ## Running locally
 
 ```bash

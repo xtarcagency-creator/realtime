@@ -24,11 +24,24 @@
   min-width: 0;
 }
 
-.brand {
+.brand-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--text-h);
+  text-decoration: none;
+}
+
+.brand-home svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.brand-home:hover svg {
+  color: var(--accent);
 }
 
 .tagline {
@@ -402,14 +415,14 @@
 
 .btn.active {
   background: var(--accent);
-  color: #fff;
+  color: #16110b;
   border-color: var(--accent);
   box-shadow: var(--shadow-sm);
 }
 
 .btn.active:hover:not(:disabled) {
   background: var(--accent);
-  color: #fff;
+  color: #16110b;
 }
 
 .btn:disabled {
