@@ -129,8 +129,13 @@ from within an iframe, and the embedding page must be served over HTTPS
 - `src/lib/yoloDetector.ts` — YOLOv8n via `onnxruntime-web`: letterbox
   preprocessing, raw output tensor decode, NMS. Model at
   `public/models/yolov8n.onnx` (COCO-pretrained, exported at 640x640).
-- `src/lib/tracker.ts` — minimal nearest-centroid tracker used by the
-  top-down pipeline.
+- `src/lib/tracker.ts` — the top-down pipeline's tracker: matches
+  detections against each track's velocity-predicted position (not its
+  last-seen position), resolves all detection/track pairs globally
+  smallest-distance-first (instead of one detection at a time in array
+  order, which lets an earlier detection steal a track that was actually
+  the better match for a later one), and expires missed tracks on
+  wall-clock time rather than a frame count.
 - `src/lib/activity.ts` — heuristic activity classifier + shared centroid
   helper.
 - `src/lib/coverMap.ts` — maps arbitrary camera/video resolutions onto the
