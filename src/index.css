@@ -44,6 +44,11 @@ button {
   font: inherit;
 }
 
+.route-loading {
+  min-height: 100svh;
+  background: var(--bg);
+}
+
 ::selection {
   background: var(--accent-soft);
   color: var(--accent);
