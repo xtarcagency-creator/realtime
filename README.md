@@ -9,8 +9,8 @@ no video leaves the device.
 - **Multi-person detection & tracking** — every person in frame gets a
   persistent ID across frames. Fast/Balanced use MoveNet MultiPose (one
   pass over the whole frame — cheap). High switches to a top-down
-  pipeline: two independent detectors propose person boxes — YOLOv8n
-  (an ONNX model, bundled locally at `public/models/yolov8n.onnx`, run
+  pipeline: two independent detectors propose person boxes — YOLO11s
+  (an ONNX model, bundled locally at `public/models/yolo11s.onnx`, run
   via `onnxruntime-web`) and MoveNet MultiPose's own per-instance box
   output — unioned and deduped, since a single detector's NMS can
   collapse two heavily-overlapping people into one box; either one
@@ -46,7 +46,7 @@ no video leaves the device.
   accuracy depends heavily on this: CCTV-style footage with
   smaller/closer-together/overlapping people needs High (the top-down
   pipeline), not just a close-up webcam demo. High's first use downloads
-  the YOLO model (~13MB) and the ONNX WASM runtime (~28MB), both served
+  the YOLO model (~38MB) and the ONNX WASM runtime (~28MB), both served
   from the same origin — no external CDN dependency, but a real one-time
   download (cached by the browser after).
 - **Frame capture** — save the current canvas (video + overlay) as a PNG.
@@ -131,9 +131,9 @@ from within an iframe, and the embedding page must be served over HTTPS
   neighbors) → MoveNet Thunder per crop → map keypoints back to
   full-frame coordinates → `CentroidTracker` for persistent IDs (this
   path has no built-in tracker, unlike MultiPose).
-- `src/lib/yoloDetector.ts` — YOLOv8n via `onnxruntime-web`: letterbox
+- `src/lib/yoloDetector.ts` — YOLO11s via `onnxruntime-web`: letterbox
   preprocessing, raw output tensor decode, NMS. Model at
-  `public/models/yolov8n.onnx` (COCO-pretrained, exported at 640x640).
+  `public/models/yolo11s.onnx` (COCO-pretrained, exported at 640x640).
 - `src/lib/tracker.ts` — the top-down pipeline's tracker: matches
   detections against each track's velocity-predicted position (not its
   last-seen position), resolves all detection/track pairs globally

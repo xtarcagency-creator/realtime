@@ -1,12 +1,15 @@
 import * as ort from 'onnxruntime-web'
 
-// YOLOv8n (COCO), exported to ONNX at 640x640 input, bundled locally at
-// public/models/yolov8n.onnx — no runtime dependency on a model-hosting CDN.
-// This whole pipeline (letterbox preprocessing, raw output decode, NMS) was
-// verified against Ultralytics' own reference implementation in Python
-// before being ported here: same box coordinates and confidences, run
-// against the actual footage this was built for (see project history).
-const MODEL_URL = '/models/yolov8n.onnx'
+// YOLO11s (COCO), exported to ONNX at 640x640 input, bundled locally at
+// public/models/yolo11s.onnx — no runtime dependency on a model-hosting CDN.
+// Upgraded from YOLOv8n (the smallest/fastest variant) for meaningfully
+// better recall, at the cost of a larger download (~38MB vs ~13MB) and more
+// per-frame compute. Same output tensor shape/semantics as YOLOv8n
+// ([1, 84, 8400], same box/class-score layout), confirmed by running this
+// exact letterbox+decode+NMS logic in Python against the raw ONNX session
+// and diffing against Ultralytics' own high-level prediction on the same
+// images before swapping the model file — no decode logic changes needed.
+const MODEL_URL = '/models/yolo11s.onnx'
 const INPUT_SIZE = 640
 const PERSON_CLASS_INDEX = 0 // COCO class 0 = person
 // Lowered from 0.25 — this is only the primary detector; MultiPose's own box
