@@ -9,7 +9,12 @@ import * as ort from 'onnxruntime-web'
 const MODEL_URL = '/models/yolov8n.onnx'
 const INPUT_SIZE = 640
 const PERSON_CLASS_INDEX = 0 // COCO class 0 = person
-const CONF_THRESHOLD = 0.25
+// Lowered from 0.25 — this is only the primary detector; MultiPose's own box
+// output is unioned in afterward, but a person YOLO drops below threshold
+// never gets a second chance from that ensemble. A missed person is a worse
+// failure than an extra low-confidence box, which just gets deduped/ignored
+// downstream.
+const CONF_THRESHOLD = 0.15
 const NMS_IOU_THRESHOLD = 0.45
 
 export interface YoloBox {

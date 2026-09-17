@@ -33,10 +33,11 @@ function getBottomUpDetector(quality: BottomUpQuality): Promise<Detector> {
         // which detection quality tier is active.
         trackerConfig: { maxTracks: 18, maxAge: 1200, minSimilarity: 0.15, boundingBoxTrackerParams: {} },
         multiPoseMaxDimension: QUALITY_DIMENSION[quality],
-        // Default is 0.25 — lower so a second, less-confident person (partially
-        // occluded, smaller in frame) still gets included as a detection at all;
-        // our own per-keypoint score filtering still hides noisy joints.
-        minPoseScore: 0.15,
+        // Default is 0.25 — lowered further so a second, less-confident person
+        // (partially occluded, smaller in frame) still gets included as a
+        // detection at all; our own per-keypoint score filtering still hides
+        // noisy joints, so this only costs precision, not visible garbage.
+        minPoseScore: 0.1,
       })
       if (prevPromise) {
         const prevDetector = await prevPromise
