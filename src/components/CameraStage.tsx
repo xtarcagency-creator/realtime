@@ -15,8 +15,18 @@ import { computeCoverTransform, mapPointCover } from '../lib/coverMap'
 import { ACTIVITY_COLORS } from '../lib/activityColors'
 import type { ActivityEvent, DetectionQuality, OverlayMode, Point, Source, TrackedPerson, Zone } from '../lib/types'
 
-const CANVAS_W = 1920
-const CANVAS_H = 1080
+// Fixed internal canvas/capture resolution — not the displayed size (CSS
+// scales it down to fit the viewport). Every frame does a full drawImage +
+// skeleton/zone redraw at this resolution regardless of how small it's
+// actually shown, so this is a direct FPS lever. 720p is already well above
+// what any quality tier's model actually consumes (Fast/Balanced downscale
+// to 256-384px, High's YOLO input is 640px letterboxed, Thunder crops are
+// 256px) — the extra source detail past that doesn't improve detection, it
+// only costs more per-frame canvas/camera-decode work. Kept fixed (not
+// responsive to viewport size) so zone coordinates, stored in this same
+// canvas-space, stay stable across window resizes.
+const CANVAS_W = 1280
+const CANVAS_H = 720
 // A person can go briefly undetected (occlusion, a confidence dip, motion
 // blur) well within the tracker's own missed-frame tolerance, which still
 // recognizes them by the same id if they reappear. Wall-clock (not

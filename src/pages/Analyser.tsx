@@ -8,7 +8,9 @@ import { DEFAULT_LOITER_THRESHOLD_SEC, MIN_ZONE_POINTS } from '../lib/zones'
 import './Analyser.css'
 
 const MAX_EVENTS = 50
-const ZONES_STORAGE_KEY = 'realtime-activity-analyser.zones'
+// v2: canvas coordinate space changed from 1920x1080 to 1280x720 — bumped so
+// zones saved under the old space aren't silently loaded misaligned.
+const ZONES_STORAGE_KEY = 'realtime-activity-analyser.zones.v2'
 
 function loadStoredZones(): Zone[] {
   try {
