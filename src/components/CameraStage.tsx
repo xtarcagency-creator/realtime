@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, X, Eye, EyeClosed, Camera, Play, Pause, CircleNotch, UploadSimple } from '@phosphor-icons/react'
-import { estimatePoses, preloadModels, resetTracking } from '../lib/pose'
+import { estimatePoses, estimateDetailedPoses, preloadModels, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import {
   pointInZone,
@@ -99,6 +99,7 @@ export default function CameraStage({
   const [videoPlaying, setVideoPlaying] = useState(true)
   const [isDragOver, setIsDragOver] = useState(false)
   const dragDepth = useRef(0)
+  const [inspecting, setInspecting] = useState(false)
 
   useEffect(() => {
     zonesRef.current = zones
@@ -219,14 +220,76 @@ export default function CameraStage({
 
       setStatus('')
 
-      if (source.kind === 'upload') {
-        const handleTimeUpdate = () => setCurrentTime(video.currentTime)
-        const handlePlay = () => setVideoPlaying(true)
-        const handlePause = () => setVideoPlaying(false)
-        const handleSeeked = () => {
-          // redraw immediately so scrubbing while paused is visible, not just a frozen frame
+      // Paused, there's no real-time FPS budget to protect — run the full
+      // top-down ensemble uncapped with a forced-fresh box detection on just
+      // this one frame, instead of the live loop's throttled/capped pass.
+      // Superseded (via inspectToken) by a newer pause/seek before it
+      // resolves, so a slow inspection can't clobber a fresher one.
+      let inspectToken = 0
+      const inspectPausedFrame = async () => {
+        const token = ++inspectToken
+        setInspecting(true)
+        try {
+          const poses = await estimateDetailedPoses(video)
+          if (stopped || token !== inspectToken) return
+          ctx.save()
           ctx.clearRect(0, 0, canvas.width, canvas.height)
           ctx.drawImage(video, cover.sx, cover.sy, cover.sw, cover.sh, 0, 0, canvas.width, canvas.height)
+          const INSPECT_COLOR = '#ffffff'
+          ctx.strokeStyle = INSPECT_COLOR
+          ctx.fillStyle = INSPECT_COLOR
+          ctx.lineWidth = 5 * DRAW_SCALE
+          for (const pose of poses) {
+            for (const [a, b] of SKELETON_EDGES) {
+              const ka = pose.keypoints.find((k) => k.name === a)
+              const kb = pose.keypoints.find((k) => k.name === b)
+              if (ka && kb && (ka.score ?? 0) > 0.3 && (kb.score ?? 0) > 0.3) {
+                const pa = mapPointCover(ka, cover)
+                const pb = mapPointCover(kb, cover)
+                ctx.beginPath()
+                ctx.moveTo(pa.x, pa.y)
+                ctx.lineTo(pb.x, pb.y)
+                ctx.stroke()
+              }
+            }
+            for (const k of pose.keypoints) {
+              if ((k.score ?? 0) > 0.3) {
+                const pk = mapPointCover(k, cover)
+                ctx.beginPath()
+                ctx.arc(pk.x, pk.y, 6 * DRAW_SCALE, 0, Math.PI * 2)
+                ctx.fill()
+              }
+            }
+          }
+          ctx.restore()
+        } catch (err) {
+          console.error('[CameraStage] paused-frame inspection failed', err)
+        } finally {
+          if (token === inspectToken) setInspecting(false)
+        }
+      }
+
+      if (source.kind === 'upload') {
+        const handleTimeUpdate = () => setCurrentTime(video.currentTime)
+        const handlePlay = () => {
+          setVideoPlaying(true)
+          // Invalidate any inspection still in flight so a slow analysis
+          // can't land after playback resumed and overwrite a live frame.
+          inspectToken++
+          setInspecting(false)
+        }
+        const handlePause = () => {
+          setVideoPlaying(false)
+          inspectPausedFrame()
+        }
+        const handleSeeked = () => {
+          if (video.paused) {
+            inspectPausedFrame()
+          } else {
+            // redraw immediately so scrubbing while playing has no visible gap
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            ctx.drawImage(video, cover.sx, cover.sy, cover.sw, cover.sh, 0, 0, canvas.width, canvas.height)
+          }
         }
         video.addEventListener('timeupdate', handleTimeUpdate)
         video.addEventListener('play', handlePlay)
@@ -637,6 +700,12 @@ export default function CameraStage({
           <div className="live-badge">
             <span className="live-dot" />
             Live
+          </div>
+        )}
+        {inspecting && (
+          <div className="live-badge">
+            <CircleNotch size={12} weight="bold" className="spin" />
+            Analyzing frame
           </div>
         )}
         {drawMode && draftPoints.length > 0 && (

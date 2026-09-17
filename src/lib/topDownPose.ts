@@ -114,13 +114,22 @@ function dedupeBoxes(boxes: BoxProposal[]): BoxProposal[] {
   return kept
 }
 
-export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pose[]> {
+interface RawPose {
+  keypoints: poseDetection.Keypoint[]
+  centroid: { x: number; y: number }
+}
+
+async function detectRawPoses(
+  video: HTMLVideoElement,
+  opts: { forceRefresh: boolean; uncapped: boolean },
+): Promise<RawPose[]> {
   const vw = video.videoWidth
   const vh = video.videoHeight
   const poseDetector = await getSinglePoseDetector()
 
   let people: BoxProposal[]
-  if (framesSinceRefresh >= BOX_REFRESH_INTERVAL) {
+  const didRefresh = opts.forceRefresh || framesSinceRefresh >= BOX_REFRESH_INTERVAL
+  if (didRefresh) {
     // YOLO (ONNX Runtime/WASM) and the MultiPose proposal detector (TF.js/
     // WebGL or WebGPU) are independent runtimes that don't contend for the
     // same execution resource, so run them concurrently instead of awaiting
@@ -142,17 +151,23 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
       }))
 
     people = dedupeBoxes([...yoloProposals, ...poseBoxes])
-    cachedBoxes = people
-    framesSinceRefresh = 0
     console.info(
       `[topdown] yolo boxes: ${yoloProposals.length}, proposal boxes: ${poseBoxes.length}, deduped: ${people.length}`,
     )
+    // A one-shot detailed inspection (paused frame) must not disturb the live
+    // loop's own refresh cycle — only the normal cached/throttled path
+    // updates the shared cache, so resuming playback picks its own cadence
+    // back up instead of inheriting a box set from wherever the user paused.
+    if (!opts.forceRefresh) {
+      cachedBoxes = people
+      framesSinceRefresh = 0
+    }
   } else {
     people = cachedBoxes
     framesSinceRefresh++
   }
 
-  if (people.length > MAX_TRACKED_PEOPLE) {
+  if (!opts.uncapped && people.length > MAX_TRACKED_PEOPLE) {
     people = [...people]
       .sort((a, b) => (b.x1 - b.x0) * (b.y1 - b.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))
       .slice(0, MAX_TRACKED_PEOPLE)
@@ -211,13 +226,32 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
     rawPoses.push({ keypoints, centroid })
   }
 
-  if (framesSinceRefresh === 0) {
+  if (didRefresh) {
     console.info(`[topdown] people boxes after cap: ${people.length}, poses after crop+Thunder: ${rawPoses.length}`)
   }
 
+  return rawPoses
+}
+
+/** Live-loop path: cached/throttled box refresh, capped person count, persistent tracker ids. */
+export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pose[]> {
+  const rawPoses = await detectRawPoses(video, { forceRefresh: false, uncapped: false })
   const ids = tracker.update(
     rawPoses.map((p) => p.centroid),
     performance.now(),
   )
   return rawPoses.map((p, i) => ({ id: ids[i], keypoints: p.keypoints }))
+}
+
+/**
+ * One-shot "inspect this paused frame" path: always fresh box detection, no
+ * person cap, since there's no real-time budget to protect for a single
+ * still frame. Deliberately bypasses the persistent tracker (and the live
+ * loop's box cache) — this is a disconnected snapshot, not a continuation of
+ * the tracked sequence, so it gets its own throwaway per-call ids instead of
+ * ids that could collide with or confuse ongoing tracking.
+ */
+export async function estimateTopDownPosesDetailed(video: HTMLVideoElement): Promise<Pose[]> {
+  const rawPoses = await detectRawPoses(video, { forceRefresh: true, uncapped: true })
+  return rawPoses.map((p, i) => ({ id: i + 1, keypoints: p.keypoints }))
 }
