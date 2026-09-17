@@ -145,6 +145,7 @@ export default function CameraStage({
     let raf = 0
     let stopped = false
     let lastFrameTime = performance.now()
+    let lastLoggedPoseCount = -1
     let frameCount = 0
     let fpsTimer = performance.now()
     let detachPlaybackListeners: (() => void) | null = null
@@ -256,6 +257,10 @@ export default function CameraStage({
         lastFrameTime = now
 
         const poses = await estimatePoses(video, qualityRef.current)
+        if (poses.length !== lastLoggedPoseCount) {
+          console.info(`[detect] ${qualityRef.current}: ${poses.length} pose(s) this frame`, poses)
+          lastLoggedPoseCount = poses.length
+        }
 
         ctx.save()
         ctx.clearRect(0, 0, canvas.width, canvas.height)

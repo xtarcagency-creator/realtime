@@ -142,6 +142,9 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
     people = dedupeBoxes([...yoloProposals, ...poseBoxes])
     cachedBoxes = people
     framesSinceRefresh = 0
+    console.info(
+      `[topdown] yolo boxes: ${yoloProposals.length}, proposal boxes: ${poseBoxes.length}, deduped: ${people.length}`,
+    )
   } else {
     people = cachedBoxes
     framesSinceRefresh++
@@ -204,6 +207,10 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
     const hip = keypoints.find((k) => (k.name === 'left_hip' || k.name === 'right_hip') && (k.score ?? 0) > 0.3)
     const centroid = hip ? { x: hip.x, y: hip.y } : { x: x0 + cropW / 2, y: y0 + cropH / 2 }
     rawPoses.push({ keypoints, centroid })
+  }
+
+  if (framesSinceRefresh === 0) {
+    console.info(`[topdown] people boxes after cap: ${people.length}, poses after crop+Thunder: ${rawPoses.length}`)
   }
 
   const ids = tracker.update(
