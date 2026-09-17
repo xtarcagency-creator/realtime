@@ -112,6 +112,7 @@ function Analyser() {
             <button
               className={source.kind === 'upload' ? 'btn active' : 'btn'}
               onClick={() => fileInputRef.current?.click()}
+              title="Upload a video, or drag one onto the video area"
             >
               <UploadSimple size={13} weight="bold" />
               Upload video
@@ -144,6 +145,7 @@ function Analyser() {
           alertPulse={alertPulse}
           loiterThresholdSec={loiterThresholdSec}
           onModelLoadingChange={setModelLoading}
+          onFileDrop={handleFile}
         />
         <Dashboard
           people={people}

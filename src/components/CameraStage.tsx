@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, X, Eye, EyeClosed, Camera, Play, Pause, CircleNotch } from '@phosphor-icons/react'
+import { Check, X, Eye, EyeClosed, Camera, Play, Pause, CircleNotch, UploadSimple } from '@phosphor-icons/react'
 import { estimatePoses, preloadModels, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import {
@@ -65,6 +65,7 @@ interface Props {
   alertPulse: number
   loiterThresholdSec: number
   onModelLoadingChange: (loading: boolean) => void
+  onFileDrop: (file: File) => void
 }
 
 export default function CameraStage({
@@ -79,6 +80,7 @@ export default function CameraStage({
   alertPulse,
   loiterThresholdSec,
   onModelLoadingChange,
+  onFileDrop,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -95,6 +97,8 @@ export default function CameraStage({
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [videoPlaying, setVideoPlaying] = useState(true)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragDepth = useRef(0)
 
   useEffect(() => {
     zonesRef.current = zones
@@ -499,6 +503,31 @@ export default function CameraStage({
     setCursorPos(toCanvasCoords(e))
   }
 
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault()
+    if (!e.dataTransfer.types.includes('Files')) return
+    dragDepth.current++
+    setIsDragOver(true)
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setIsDragOver(false)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    dragDepth.current = 0
+    setIsDragOver(false)
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith('video/'))
+    if (file) onFileDrop(file)
+  }
+
   function handleCapture() {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -580,13 +609,25 @@ export default function CameraStage({
         muted
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
       />
-      <div className="stage-frame">
+      <div
+        className={isDragOver ? 'stage-frame drag-over' : 'stage-frame'}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
           onMouseMove={handleCanvasMouseMove}
           className={drawMode ? 'draw-cursor' : ''}
         />
+        {isDragOver && (
+          <div className="drop-overlay">
+            <UploadSimple size={28} weight="bold" />
+            Drop video to upload
+          </div>
+        )}
         {running && !status && source.kind === 'camera' && (
           <div className="live-badge">
             <span className="live-dot" />

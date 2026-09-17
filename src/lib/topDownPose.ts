@@ -23,7 +23,12 @@ import type { Pose } from './pose'
 // one — exactly the case of two people standing close together.
 
 const MULTIPOSE_PROPOSAL_SCORE_MIN = 0.15
-const MULTIPOSE_PROPOSAL_DIMENSION = 512 // top of MoveNet's documented recommended range
+// This detector only produces auxiliary box proposals (YOLO is the primary
+// person detector; this one just catches whatever YOLO's NMS might have
+// merged) — the padded, neighbor-capped crop already absorbs a fair amount
+// of imprecision, so it doesn't need MoveNet's top recommended resolution.
+// Shaved down from 512 for a real per-refresh speedup.
+const MULTIPOSE_PROPOSAL_DIMENSION = 384
 const DEDUPE_IOU_THRESHOLD = 0.4
 const CROP_SIZE = 256 // MoveNet SinglePose Thunder's native input size
 const PAD_RATIO = 0.25 // padding around each detected box so joints near the edge aren't cut off
@@ -33,7 +38,7 @@ const PAD_RATIO = 0.25 // padding around each detected box so joints near the ed
 // refreshes — Thunder still re-runs on every frame regardless, so the actual
 // joint positions users see stay smooth; only the crop box itself goes
 // briefly stale, which a few pixels of padding already absorbs.
-const BOX_REFRESH_INTERVAL = 3
+const BOX_REFRESH_INTERVAL = 5
 // Cap the worst-case cost of a crowded frame: each additional person here is
 // one more full Thunder pass this frame, so an unbounded count can tank FPS
 // exactly when there's the most going on. Keeps the largest (closest/most
@@ -114,8 +119,12 @@ export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pos
 
   let people: BoxProposal[]
   if (framesSinceRefresh >= BOX_REFRESH_INTERVAL) {
-    const [yoloBoxes, proposalDetector] = await Promise.all([detectPersons(video), getProposalDetector()])
-    const proposalPoses = await proposalDetector.estimatePoses(video, { flipHorizontal: false })
+    // YOLO (ONNX Runtime/WASM) and the MultiPose proposal detector (TF.js/
+    // WebGL or WebGPU) are independent runtimes that don't contend for the
+    // same execution resource, so run them concurrently instead of awaiting
+    // one after the other.
+    const proposalPosesPromise = getProposalDetector().then((d) => d.estimatePoses(video, { flipHorizontal: false }))
+    const [yoloBoxes, proposalPoses] = await Promise.all([detectPersons(video), proposalPosesPromise])
 
     const yoloProposals: BoxProposal[] = yoloBoxes.map((b: YoloBox) => ({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }))
 

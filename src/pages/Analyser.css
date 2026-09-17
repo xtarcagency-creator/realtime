@@ -114,6 +114,28 @@
   max-height: calc(100svh - 260px);
   aspect-ratio: 16 / 9;
   box-shadow: var(--shadow-md);
+  transition: border-color 120ms ease;
+}
+
+.stage-frame.drag-over {
+  border-color: var(--accent);
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(17, 17, 18, 0.85);
+  border: 2px dashed var(--accent);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .video-scrubber {
