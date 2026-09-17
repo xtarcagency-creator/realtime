@@ -6,15 +6,6 @@
   for = "/*"
   [headers.values]
     Permissions-Policy = "camera=*, microphone=()"
-    # Cross-origin isolation, so onnxruntime-web's WASM backend (used for
-    # YOLO in High quality) can use SharedArrayBuffer and actually run
-    # multi-threaded instead of silently falling back to a single thread.
-    # "credentialless" (not the stricter "require-corp") because the MoveNet
-    # model weights are fetched from a third-party CDN that sends CORS
-    # headers but no Cross-Origin-Resource-Policy header — require-corp would
-    # block that fetch entirely and break every quality tier.
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Embedder-Policy = "credentialless"
 
 [[headers]]
   for = "/assets/*"

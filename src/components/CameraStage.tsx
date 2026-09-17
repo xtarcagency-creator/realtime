@@ -238,12 +238,15 @@ export default function CameraStage({
         }
       }
 
-      const loop = async () => {
-        if (stopped) return
-        if (video.paused || video.ended) {
-          raf = requestAnimationFrame(loop)
-          return
-        }
+      // A frame that throws (a transient inference hiccup, a decode error) must
+      // not permanently kill the loop — without the try/catch below, that
+      // exception happened before the final requestAnimationFrame(loop) call
+      // at the bottom, so the loop simply stopped scheduling itself forever:
+      // the canvas froze on the last successfully drawn frame while the
+      // <video> element itself, whose playback isn't tied to this loop at
+      // all, kept right on playing — exactly the "video plays but the frame
+      // is stuck" symptom this fixes.
+      const processFrame = async () => {
         const now = performance.now()
         const dt = (now - lastFrameTime) / 1000
         lastFrameTime = now
@@ -425,7 +428,25 @@ export default function CameraStage({
           frameCount = 0
           fpsTimer = now
         }
+      }
 
+      const loop = async () => {
+        if (stopped) return
+        if (video.paused || video.ended) {
+          raf = requestAnimationFrame(loop)
+          return
+        }
+        try {
+          await processFrame()
+        } catch (err) {
+          console.error('[CameraStage] detection frame failed, retrying next frame', err)
+          // processFrame may have thrown between ctx.save()/ctx.restore(),
+          // leaving the canvas state stack unbalanced — restore() on an
+          // empty/already-balanced stack is a documented no-op, so this is
+          // always safe to call.
+          ctx.restore()
+        }
+        if (stopped) return
         raf = requestAnimationFrame(loop)
       }
       raf = requestAnimationFrame(loop)
