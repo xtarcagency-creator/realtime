@@ -1,8 +1,7 @@
-import '@tensorflow/tfjs-backend-webgl'
-import * as tf from '@tensorflow/tfjs-core'
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import type { DetectionQuality } from './types'
 import { estimateTopDownPoses, resetTopDownTracker, preloadTopDownModels } from './topDownPose'
+import { createMoveNetDetector } from './tfBackend'
 
 export type Pose = poseDetection.Pose
 export type Detector = poseDetection.PoseDetector
@@ -24,9 +23,7 @@ function getBottomUpDetector(quality: BottomUpQuality): Promise<Detector> {
   if (!bottomUpCurrent || bottomUpCurrent.quality !== quality) {
     const prevPromise = bottomUpCurrent?.detector ?? null
     const nextPromise = (async () => {
-      await tf.setBackend('webgl')
-      await tf.ready()
-      const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+      const detector = await createMoveNetDetector({
         modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
         enableTracking: true,
         trackerType: poseDetection.TrackerType.BoundingBox,

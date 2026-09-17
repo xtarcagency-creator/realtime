@@ -1,6 +1,7 @@
 import * as poseDetection from '@tensorflow-models/pose-detection'
 import { detectPersons, preloadYoloModel, type YoloBox } from './yoloDetector'
 import { CentroidTracker } from './tracker'
+import { createMoveNetDetector } from './tfBackend'
 import type { Pose } from './pose'
 
 // Bottom-up multi-pose models (MoveNet MultiPose) estimate every joint for
@@ -41,7 +42,7 @@ const tracker = new CentroidTracker()
 
 function getSinglePoseDetector() {
   if (!singlePoseDetectorPromise) {
-    singlePoseDetectorPromise = poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+    singlePoseDetectorPromise = createMoveNetDetector({
       modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
     })
   }
@@ -50,7 +51,7 @@ function getSinglePoseDetector() {
 
 function getProposalDetector() {
   if (!proposalDetectorPromise) {
-    proposalDetectorPromise = poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+    proposalDetectorPromise = createMoveNetDetector({
       modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
       enableTracking: false,
       multiPoseMaxDimension: MULTIPOSE_PROPOSAL_DIMENSION,
