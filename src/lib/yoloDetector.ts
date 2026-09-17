@@ -80,7 +80,10 @@ export async function detectPersons(video: HTMLVideoElement): Promise<YoloBox[]>
   if (!letterboxCanvas) letterboxCanvas = document.createElement('canvas')
   letterboxCanvas.width = INPUT_SIZE
   letterboxCanvas.height = INPUT_SIZE
-  const ctx = letterboxCanvas.getContext('2d')!
+  // getImageData runs every refresh frame — willReadFrequently tells the
+  // browser to back this canvas for fast CPU readback instead of the GPU-
+  // composited path it'd otherwise pick, which Chrome was flagging as slow.
+  const ctx = letterboxCanvas.getContext('2d', { willReadFrequently: true })!
   ctx.fillStyle = 'rgb(114,114,114)' // YOLO's standard letterbox pad color
   ctx.fillRect(0, 0, INPUT_SIZE, INPUT_SIZE)
   ctx.drawImage(video, 0, 0, vw, vh, padX, padY, nw, nh)
