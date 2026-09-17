@@ -96,10 +96,15 @@ recommended for WebGL performance).
 npm run build
 ```
 
-Outputs a static site to `dist/`. `netlify.toml` is included (build command
-`npm run build`, publish dir `dist`, plus a `Permissions-Policy` header for
-camera access), so on Netlify: **New site from Git** → connect this
-repo/branch — build settings are picked up automatically.
+Outputs a static site to `dist/` — no server, no build-time secrets, so any
+static host works. Both included:
+
+- **Netlify**: `netlify.toml` (build command `npm run build`, publish dir
+  `dist`, SPA redirect, a `Permissions-Policy` header for camera access).
+  **New site from Git** → connect this repo/branch — picked up automatically.
+- **Vercel**: `vercel.json` (same build/output settings, SPA rewrite, same
+  header). **Add New → Project** → import this repo — picked up
+  automatically.
 
 To embed it elsewhere (e.g. an iframe):
 
