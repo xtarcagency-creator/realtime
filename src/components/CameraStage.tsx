@@ -178,11 +178,35 @@ export default function CameraStage({
         video.loop = true
       }
 
-      await new Promise<void>((resolve) => {
-        if (video.readyState >= 1) resolve()
-        else video.onloadedmetadata = () => resolve()
-      })
-      await video.play()
+      try {
+        await new Promise<void>((resolve, reject) => {
+          if (video.readyState >= 1) {
+            resolve()
+            return
+          }
+          // Without an error/timeout path, a video the browser can't decode
+          // (unsupported codec/container, a corrupted file) just hangs here
+          // forever — loadedmetadata never fires, but nothing ever told the
+          // user why, so the UI sat stuck on "Loading video…" indefinitely.
+          const timeout = window.setTimeout(() => reject(new Error('timeout')), 15000)
+          video.onloadedmetadata = () => {
+            window.clearTimeout(timeout)
+            resolve()
+          }
+          video.onerror = () => {
+            window.clearTimeout(timeout)
+            reject(new Error('media-error'))
+          }
+        })
+        await video.play()
+      } catch {
+        setStatus(
+          source.kind === 'upload'
+            ? "Couldn't load this video — it may be corrupted or in a format this browser can't play. Try an MP4 (H.264) or WebM file."
+            : 'Camera access denied or unavailable.',
+        )
+        return
+      }
       if (stopped) return
 
       const ctx = canvas.getContext('2d')!
