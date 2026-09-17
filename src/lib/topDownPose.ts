@@ -27,6 +27,18 @@ const MULTIPOSE_PROPOSAL_DIMENSION = 512 // top of MoveNet's documented recommen
 const DEDUPE_IOU_THRESHOLD = 0.4
 const CROP_SIZE = 256 // MoveNet SinglePose Thunder's native input size
 const PAD_RATIO = 0.25 // padding around each detected box so joints near the edge aren't cut off
+// Person boxes barely move frame to frame at video framerate, but detecting
+// them costs two full model passes (YOLO + the MultiPose proposal detector).
+// Only refresh boxes every Nth frame and reuse the cached ones between
+// refreshes — Thunder still re-runs on every frame regardless, so the actual
+// joint positions users see stay smooth; only the crop box itself goes
+// briefly stale, which a few pixels of padding already absorbs.
+const BOX_REFRESH_INTERVAL = 3
+// Cap the worst-case cost of a crowded frame: each additional person here is
+// one more full Thunder pass this frame, so an unbounded count can tank FPS
+// exactly when there's the most going on. Keeps the largest (closest/most
+// prominent) people.
+const MAX_TRACKED_PEOPLE = 10
 
 interface BoxProposal {
   x0: number
@@ -39,6 +51,8 @@ let singlePoseDetectorPromise: Promise<poseDetection.PoseDetector> | null = null
 let proposalDetectorPromise: Promise<poseDetection.PoseDetector> | null = null
 let cropCanvas: HTMLCanvasElement | null = null
 const tracker = new CentroidTracker()
+let cachedBoxes: BoxProposal[] = []
+let framesSinceRefresh = BOX_REFRESH_INTERVAL // force a refresh on the first call
 
 function getSinglePoseDetector() {
   if (!singlePoseDetectorPromise) {
@@ -63,6 +77,8 @@ function getProposalDetector() {
 
 export function resetTopDownTracker() {
   tracker.reset()
+  cachedBoxes = []
+  framesSinceRefresh = BOX_REFRESH_INTERVAL
 }
 
 /** Warm all three models (YOLO, Thunder, MultiPose-proposal) so switching to High doesn't stall the first frame. */
@@ -92,31 +108,41 @@ function dedupeBoxes(boxes: BoxProposal[]): BoxProposal[] {
 }
 
 export async function estimateTopDownPoses(video: HTMLVideoElement): Promise<Pose[]> {
-  const [yoloBoxes, poseDetector, proposalDetector] = await Promise.all([
-    detectPersons(video),
-    getSinglePoseDetector(),
-    getProposalDetector(),
-  ])
-
   const vw = video.videoWidth
   const vh = video.videoHeight
+  const poseDetector = await getSinglePoseDetector()
 
-  const proposalPoses = await proposalDetector.estimatePoses(video, { flipHorizontal: false })
+  let people: BoxProposal[]
+  if (framesSinceRefresh >= BOX_REFRESH_INTERVAL) {
+    const [yoloBoxes, proposalDetector] = await Promise.all([detectPersons(video), getProposalDetector()])
+    const proposalPoses = await proposalDetector.estimatePoses(video, { flipHorizontal: false })
 
-  const yoloProposals: BoxProposal[] = yoloBoxes.map((b: YoloBox) => ({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }))
+    const yoloProposals: BoxProposal[] = yoloBoxes.map((b: YoloBox) => ({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }))
 
-  // MultiPose's box output is normalized [0,1] (unlike its keypoints, which
-  // the library already scales to pixel space) — scale it ourselves.
-  const poseBoxes: BoxProposal[] = proposalPoses
-    .filter((p) => (p.score ?? 0) >= MULTIPOSE_PROPOSAL_SCORE_MIN && p.box)
-    .map((p) => ({
-      x0: p.box!.xMin * vw,
-      y0: p.box!.yMin * vh,
-      x1: p.box!.xMax * vw,
-      y1: p.box!.yMax * vh,
-    }))
+    // MultiPose's box output is normalized [0,1] (unlike its keypoints, which
+    // the library already scales to pixel space) — scale it ourselves.
+    const poseBoxes: BoxProposal[] = proposalPoses
+      .filter((p) => (p.score ?? 0) >= MULTIPOSE_PROPOSAL_SCORE_MIN && p.box)
+      .map((p) => ({
+        x0: p.box!.xMin * vw,
+        y0: p.box!.yMin * vh,
+        x1: p.box!.xMax * vw,
+        y1: p.box!.yMax * vh,
+      }))
 
-  const people = dedupeBoxes([...yoloProposals, ...poseBoxes])
+    people = dedupeBoxes([...yoloProposals, ...poseBoxes])
+    cachedBoxes = people
+    framesSinceRefresh = 0
+  } else {
+    people = cachedBoxes
+    framesSinceRefresh++
+  }
+
+  if (people.length > MAX_TRACKED_PEOPLE) {
+    people = [...people]
+      .sort((a, b) => (b.x1 - b.x0) * (b.y1 - b.y0) - (a.x1 - a.x0) * (a.y1 - a.y0))
+      .slice(0, MAX_TRACKED_PEOPLE)
+  }
 
   if (!cropCanvas) cropCanvas = document.createElement('canvas')
   cropCanvas.width = CROP_SIZE
