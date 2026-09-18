@@ -33,7 +33,20 @@ let letterboxCanvas: HTMLCanvasElement | null = null
 
 function getSession(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
-    sessionPromise = ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] })
+    // WebGPU first, falling back to WASM (ONNX Runtime Web's own provider
+    // list already skips to the next entry if a provider is unsupported in
+    // this browser) — with an explicit WASM-only retry as a safety net in
+    // case session creation fails outright instead of gracefully falling
+    // back. Lower risk here than the earlier TF.js WebGPU attempt: this
+    // pipeline builds its input tensor as a plain CPU-side Float32Array from
+    // canvas pixel data (see detectPersons below), not a zero-copy GPU
+    // texture import from the <video> element, which is what broke there.
+    sessionPromise = ort.InferenceSession.create(MODEL_URL, { executionProviders: ['webgpu', 'wasm'] }).catch(
+      (err) => {
+        console.warn('[yolo] WebGPU session creation failed, falling back to WASM only', err)
+        return ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] })
+      },
+    )
   }
   return sessionPromise
 }
