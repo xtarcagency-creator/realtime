@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   Users,
   Gauge,
@@ -10,7 +12,10 @@ import {
   Plus,
   DownloadSimple,
   CircleNotch,
+  CheckCircle,
   UsersThree,
+  Info,
+  CaretDown,
 } from '@phosphor-icons/react'
 import { ACTIVITY_COLORS } from '../lib/activityColors'
 import type { ActivityEvent, DetectionQuality, TrackedPerson, Zone } from '../lib/types'
@@ -20,6 +25,16 @@ const QUALITY_OPTIONS: { value: DetectionQuality; label: string }[] = [
   { value: 'balanced', label: 'Balanced' },
   { value: 'high', label: 'High' },
 ]
+
+const QUALITY_DETAIL =
+  'Fast/Balanced scan the whole frame at once. High switches to a per-person pipeline (detect each person, then a sharper pose model on just their crop) — much better for small, close, or overlapping people (e.g. CCTV footage), at a real FPS cost. First use of High downloads the model (~40MB), cached after.'
+
+function formatDwell(sec: number): string {
+  if (sec < 60) return `${Math.floor(sec)}s`
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}m ${s}s`
+}
 
 interface Props {
   people: TrackedPerson[]
@@ -39,6 +54,8 @@ interface Props {
   modelLoading: boolean
 }
 
+type SectionKey = 'live' | 'detection' | 'zones' | 'people' | 'events'
+
 export default function Dashboard({
   people,
   events,
@@ -56,47 +73,60 @@ export default function Dashboard({
   onLoiterThresholdChange,
   modelLoading,
 }: Props) {
+  const [collapsed, setCollapsed] = useState<Record<SectionKey, boolean>>({
+    live: false,
+    detection: false,
+    zones: false,
+    people: false,
+    events: false,
+  })
+
+  function toggle(key: SectionKey) {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   return (
     <aside className="dashboard">
-      <div className="panel">
-        <div className="panel-title">
-          <span className="icon-badge">
-            <Users size={12} weight="bold" />
-          </span>
-          Live status
-        </div>
+      <Section
+        title="Live"
+        icon={<Users size={12} weight="bold" />}
+        collapsed={collapsed.live}
+        onToggle={() => toggle('live')}
+      >
         <div className="stat-row">
           <div className="stat">
             <span className="stat-value">{people.length}</span>
-            <span className="stat-label">people tracked</span>
+            <span className="stat-label">people</span>
           </div>
           <div className="stat">
             <span className="stat-value">{fps}</span>
             <span className="stat-label">fps</span>
           </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-title-row">
-          <div className="panel-title">
-            <span className="icon-badge">
-              <Gauge size={12} weight="bold" />
+          <div className="stat">
+            <span className="stat-value stat-value-status">
+              {modelLoading ? (
+                <CircleNotch size={13} weight="bold" className="spin" />
+              ) : (
+                <CheckCircle size={13} weight="fill" style={{ color: 'var(--good)' }} />
+              )}
+              {modelLoading ? 'Loading' : 'Ready'}
             </span>
-            Detection quality
+            <span className="stat-label">status</span>
           </div>
-          {modelLoading && (
-            <span className="loading-badge">
-              <CircleNotch size={12} weight="bold" className="spin" />
-              Loading model
-            </span>
-          )}
         </div>
-        <div className="panel-actions">
+      </Section>
+
+      <Section
+        title="Detection"
+        icon={<Gauge size={12} weight="bold" />}
+        collapsed={collapsed.detection}
+        onToggle={() => toggle('detection')}
+      >
+        <div className="segmented">
           {QUALITY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
-              className={quality === opt.value ? 'btn active' : 'btn'}
+              className={quality === opt.value ? 'active' : ''}
               onClick={() => onQualityChange(opt.value)}
               disabled={modelLoading && quality !== opt.value}
             >
@@ -104,31 +134,30 @@ export default function Dashboard({
             </button>
           ))}
         </div>
-        <div className="empty" style={{ marginTop: 8 }}>
-          Fast/Balanced scan the whole frame at once. High switches to a per-person pipeline (detect each person,
-          then a sharper pose model on just their crop) — much better for small, close, or overlapping people
-          (e.g. CCTV footage), at a real FPS cost. First use of High downloads the model (~40MB), cached after.
-        </div>
-      </div>
+        <p className="panel-note">
+          High trades speed for accuracy on small or overlapping people.
+          <span className="info-tooltip" tabIndex={0}>
+            <Info size={13} weight="bold" />
+            <span className="info-tooltip-body">{QUALITY_DETAIL}</span>
+          </span>
+        </p>
+      </Section>
 
-      <div className="panel">
-        <div className="panel-title-row">
-          <div className="panel-title">
-            <span className="icon-badge">
-              <MapPinArea size={12} weight="bold" />
-            </span>
-            Zones
-          </div>
-          <div className="panel-actions">
-            <button className={drawMode ? 'btn active' : 'btn'} onClick={onToggleDraw}>
-              <PencilSimple size={13} weight="bold" />
-              {drawMode ? 'Drawing…' : 'Draw zone'}
-            </button>
-            <button className="btn" onClick={onClearZones} disabled={!zones.length}>
-              <Trash size={13} weight="bold" />
-              Clear
-            </button>
-          </div>
+      <Section
+        title="Zones"
+        icon={<MapPinArea size={12} weight="bold" />}
+        collapsed={collapsed.zones}
+        onToggle={() => toggle('zones')}
+      >
+        <div className="panel-actions" style={{ marginBottom: 12 }}>
+          <button className={drawMode ? 'btn active' : 'btn'} onClick={onToggleDraw}>
+            <PencilSimple size={13} weight="bold" />
+            {drawMode ? 'Drawing…' : 'Draw zone'}
+          </button>
+          <button className="btn" onClick={onClearZones} disabled={!zones.length}>
+            <Trash size={13} weight="bold" />
+            Clear
+          </button>
         </div>
         <div className="loiter-control">
           <span className="loiter-label">Loiter threshold</span>
@@ -163,33 +192,43 @@ export default function Dashboard({
           </div>
         )}
         <ul className="zone-list">
-          {zones.map((z) => (
-            <li key={z.id} className="zone-row">
-              <input
-                value={z.label}
-                onChange={(e) => onRenameZone(z.id, e.target.value)}
-                className="zone-input"
-              />
-              <button
-                className="zone-remove"
-                onClick={() => onDeleteZone(z.id)}
-                aria-label={`Delete ${z.label}`}
-                title="Delete zone"
-              >
-                <X size={12} weight="bold" />
-              </button>
-            </li>
-          ))}
+          {zones.map((z) => {
+            const dwell = Math.max(0, ...people.map((p) => p.zoneDwell[z.id] ?? 0))
+            const occupied = dwell > 0
+            return (
+              <li key={z.id} className="zone-row">
+                <div className="zone-row-main">
+                  <input
+                    value={z.label}
+                    onChange={(e) => onRenameZone(z.id, e.target.value)}
+                    className="zone-input"
+                  />
+                  <button
+                    className="zone-remove"
+                    onClick={() => onDeleteZone(z.id)}
+                    aria-label={`Delete ${z.label}`}
+                    title="Delete zone"
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                </div>
+                <div className="zone-row-meta">
+                  <span className={occupied ? 'zone-status-dot occupied' : 'zone-status-dot'} />
+                  <span>{occupied ? 'Occupied' : 'Empty'}</span>
+                  {occupied && <span className="zone-dwell">{formatDwell(dwell)}</span>}
+                </div>
+              </li>
+            )
+          })}
         </ul>
-      </div>
+      </Section>
 
-      <div className="panel">
-        <div className="panel-title">
-          <span className="icon-badge">
-            <UsersThree size={12} weight="bold" />
-          </span>
-          People
-        </div>
+      <Section
+        title="People"
+        icon={<UsersThree size={12} weight="bold" />}
+        collapsed={collapsed.people}
+        onToggle={() => toggle('people')}
+      >
         {!people.length && (
           <div className="empty-state">
             <UsersThree size={20} weight="light" />
@@ -205,16 +244,16 @@ export default function Dashboard({
             </li>
           ))}
         </ul>
-      </div>
+      </Section>
 
-      <div className="panel panel-grow">
-        <div className="panel-title-row">
-          <div className="panel-title">
-            <span className="icon-badge">
-              <ListBullets size={12} weight="bold" />
-            </span>
-            Event log
-          </div>
+      <Section
+        title="Events"
+        icon={<ListBullets size={12} weight="bold" />}
+        collapsed={collapsed.events}
+        onToggle={() => toggle('events')}
+        grow
+      >
+        <div className="panel-actions" style={{ marginBottom: 10 }}>
           <button className="btn" onClick={onExportEvents} disabled={!events.length}>
             <DownloadSimple size={13} weight="bold" />
             Export CSV
@@ -237,7 +276,31 @@ export default function Dashboard({
             </li>
           ))}
         </ul>
-      </div>
+      </Section>
     </aside>
+  )
+}
+
+interface SectionProps {
+  title: string
+  icon: ReactNode
+  collapsed: boolean
+  onToggle: () => void
+  grow?: boolean
+  children: ReactNode
+}
+
+function Section({ title, icon, collapsed, onToggle, grow, children }: SectionProps) {
+  return (
+    <div className={grow ? 'panel panel-grow' : 'panel'}>
+      <button className="panel-header" onClick={onToggle} aria-expanded={!collapsed}>
+        <span className="panel-title">
+          <span className="icon-badge">{icon}</span>
+          {title}
+        </span>
+        <CaretDown size={11} weight="bold" className={collapsed ? 'panel-chevron collapsed' : 'panel-chevron'} />
+      </button>
+      {!collapsed && <div className="panel-body">{children}</div>}
+    </div>
   )
 }

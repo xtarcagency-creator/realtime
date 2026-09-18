@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { VideoCamera, UploadSimple, ArrowLeft } from '@phosphor-icons/react'
+import { VideoCamera, UploadSimple, ArrowLeft, CircleNotch, CheckCircle } from '@phosphor-icons/react'
 import CameraStage from '../components/CameraStage'
 import Dashboard from '../components/Dashboard'
 import type { ActivityEvent, DetectionQuality, Source, TrackedPerson, Zone } from '../lib/types'
@@ -96,40 +96,49 @@ function Analyser() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="header-row">
-          <div className="brand-block">
-            <Link to="/" className="brand-home">
-              <ArrowLeft size={13} weight="bold" />
-              Realtime Human Activity Analyser
-            </Link>
-            <p className="tagline">Live in-browser pose tracking &amp; zone-based behavior detection.</p>
-          </div>
-          <div className="source-bar">
-            <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
-              <VideoCamera size={13} weight="bold" />
-              Live camera
-            </button>
-            <button
-              className={source.kind === 'upload' ? 'btn active' : 'btn'}
-              onClick={() => fileInputRef.current?.click()}
-              title="Upload a video, or drag one onto the video area"
-            >
-              <UploadSimple size={13} weight="bold" />
-              Upload video
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleFile(file)
-                e.target.value = ''
-              }}
-            />
-            {fileName && source.kind === 'upload' && <span className="file-name">{fileName}</span>}
-          </div>
+        <Link to="/" className="brand-home">
+          <ArrowLeft size={14} weight="bold" />
+          <span className="brand-mark">RA</span>
+          <span className="brand-name">Realtime Activity Analyser</span>
+        </Link>
+        <div className="header-status">
+          {modelLoading ? (
+            <span className="status-pill status-pill-loading">
+              <CircleNotch size={11} weight="bold" className="spin" />
+              Loading model
+            </span>
+          ) : (
+            <span className="status-pill status-pill-ready">
+              <CheckCircle size={11} weight="fill" />
+              Ready
+            </span>
+          )}
+        </div>
+        <div className="source-bar">
+          <button className={source.kind === 'camera' ? 'btn active' : 'btn'} onClick={useCamera}>
+            <VideoCamera size={13} weight="bold" />
+            <span className="btn-label">Live camera</span>
+          </button>
+          <button
+            className={source.kind === 'upload' ? 'btn active' : 'btn'}
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload a video, or drag one onto the video area"
+          >
+            <UploadSimple size={13} weight="bold" />
+            <span className="btn-label">Upload video</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleFile(file)
+              e.target.value = ''
+            }}
+          />
+          {fileName && source.kind === 'upload' && <span className="file-name">{fileName}</span>}
         </div>
       </header>
       <main className="layout">
@@ -146,6 +155,7 @@ function Analyser() {
           loiterThresholdSec={loiterThresholdSec}
           onModelLoadingChange={setModelLoading}
           onFileDrop={handleFile}
+          onRequestUpload={() => fileInputRef.current?.click()}
         />
         <Dashboard
           people={people}

@@ -1,5 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, X, Eye, EyeClosed, Camera, Play, Pause, CircleNotch, UploadSimple } from '@phosphor-icons/react'
+import {
+  Check,
+  X,
+  Eye,
+  EyeClosed,
+  Camera,
+  Play,
+  Pause,
+  CircleNotch,
+  UploadSimple,
+  VideoCameraSlash,
+  CornersOut,
+  CornersIn,
+} from '@phosphor-icons/react'
 import { estimatePoses, estimateDetailedPoses, preloadModels, resetTracking } from '../lib/pose'
 import { classifyActivity, getCentroid, pushHistory } from '../lib/activity'
 import {
@@ -66,6 +79,7 @@ interface Props {
   loiterThresholdSec: number
   onModelLoadingChange: (loading: boolean) => void
   onFileDrop: (file: File) => void
+  onRequestUpload: () => void
 }
 
 export default function CameraStage({
@@ -81,9 +95,11 @@ export default function CameraStage({
   loiterThresholdSec,
   onModelLoadingChange,
   onFileDrop,
+  onRequestUpload,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const stageFrameRef = useRef<HTMLDivElement>(null)
   const peopleRef = useRef<Map<number, TrackedPerson>>(new Map())
   const zonesRef = useRef(zones)
   const qualityRef = useRef(quality)
@@ -98,6 +114,22 @@ export default function CameraStage({
   const [currentTime, setCurrentTime] = useState(0)
   const [videoPlaying, setVideoPlaying] = useState(true)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const handleChange = () => setIsFullscreen(document.fullscreenElement === stageFrameRef.current)
+    document.addEventListener('fullscreenchange', handleChange)
+    return () => document.removeEventListener('fullscreenchange', handleChange)
+  }, [])
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      stageFrameRef.current?.requestFullscreen()
+    }
+  }
   const dragDepth = useRef(0)
   const [inspecting, setInspecting] = useState(false)
 
@@ -534,7 +566,8 @@ export default function CameraStage({
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, running])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, running, retryTick])
 
   function toCanvasCoords(e: React.MouseEvent) {
     const canvas = canvasRef.current!
@@ -669,6 +702,14 @@ export default function CameraStage({
             <span className="toggle-track" />
             <span className="toggle-label">Feed</span>
           </label>
+          <button
+            className="btn btn-icon"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? <CornersIn size={13} weight="bold" /> : <CornersOut size={13} weight="bold" />}
+          </button>
         </div>
       </div>
       <video
@@ -678,6 +719,7 @@ export default function CameraStage({
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
       />
       <div
+        ref={stageFrameRef}
         className={isDragOver ? 'stage-frame drag-over' : 'stage-frame'}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
@@ -723,10 +765,36 @@ export default function CameraStage({
           </svg>
         )}
         {alertPulse > 0 && <div key={alertPulse} className="alert-flash" />}
-        {status && (
-          <div className="stage-status">
-            {status.endsWith('…') && <CircleNotch size={16} weight="bold" className="spin" />}
+        {status && status.endsWith('…') && (
+          <div className="stage-status stage-status-loading">
+            <CircleNotch size={16} weight="bold" className="spin" />
             {status}
+          </div>
+        )}
+        {status === 'Camera access denied or unavailable.' && (
+          <div className="stage-status">
+            <span className="stage-status-icon">
+              <VideoCameraSlash size={20} weight="bold" />
+            </span>
+            <span className="stage-status-title">Camera access unavailable</span>
+            <span className="stage-status-body">
+              Grant camera permission in your browser, or use a video file instead.
+            </span>
+            <div className="stage-status-actions">
+              <button className="btn active" onClick={() => setRetryTick((n) => n + 1)}>
+                <Camera size={13} weight="bold" />
+                Enable camera
+              </button>
+              <button className="btn" onClick={onRequestUpload}>
+                <UploadSimple size={13} weight="bold" />
+                Upload video
+              </button>
+            </div>
+          </div>
+        )}
+        {status && status !== 'Camera access denied or unavailable.' && !status.endsWith('…') && (
+          <div className="stage-status">
+            <span className="stage-status-title">{status}</span>
           </div>
         )}
       </div>
