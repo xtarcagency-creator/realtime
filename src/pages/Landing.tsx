@@ -53,10 +53,7 @@ export default function Landing() {
     <div className="landing">
       <header className="landing-nav">
         <div className="landing-nav-inner">
-          <span className="landing-logo">
-            <span className="logo-mark">RA</span>
-            <span className="logo-word">Realtime Activity Analyzer</span>
-          </span>
+          <span className="landing-logo">Realtime Activity Analyzer</span>
           <div className="landing-nav-actions">
             <a className="nav-link" href={REPO_URL} target="_blank" rel="noreferrer">
               <GithubLogo size={15} weight="bold" />
@@ -117,10 +114,7 @@ export default function Landing() {
             </div>
             <div className="demo-app" aria-hidden="true">
               <div className="demo-nav">
-                <span className="demo-brand">
-                  <span className="demo-brand-mark">RA</span>
-                  Realtime Activity Analyser
-                </span>
+                <span className="demo-brand">Realtime Activity Analyzer</span>
                 <span className="demo-status">
                   <CheckCircle size={11} weight="fill" />
                   Ready

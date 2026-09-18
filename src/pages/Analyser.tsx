@@ -98,8 +98,7 @@ function Analyser() {
       <header className="app-header">
         <Link to="/" className="brand-home">
           <ArrowLeft size={14} weight="bold" />
-          <span className="brand-mark">RA</span>
-          <span className="brand-name">Realtime Activity Analyser</span>
+          <span className="brand-name">Realtime Activity Analyzer</span>
         </Link>
         <div className="header-status">
           {modelLoading ? (

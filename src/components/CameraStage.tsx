@@ -512,9 +512,9 @@ export default function CameraStage({
         for (const zone of zonesRef.current) {
           if (zone.points.length < MIN_ZONE_POINTS) continue
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
-          const zoneColor = occupied ? '#f5a524' : '#22b8cf'
+          const zoneColor = occupied ? '#c58b2a' : '#22b8cf'
           ctx.strokeStyle = zoneColor
-          ctx.fillStyle = occupied ? 'rgba(245,165,36,0.12)' : 'rgba(34,184,207,0.1)'
+          ctx.fillStyle = occupied ? 'rgba(197,139,42,0.12)' : 'rgba(34,184,207,0.1)'
           ctx.lineWidth = 3 * DRAW_SCALE
           ctx.beginPath()
           zone.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
@@ -785,7 +785,7 @@ export default function CameraStage({
               strokeDasharray={`${8 * DRAW_SCALE} ${6 * DRAW_SCALE}`}
             />
             {draftPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#32d583' : '#22b8cf'} />
+              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#2f8f5b' : '#22b8cf'} />
             ))}
           </svg>
         )}

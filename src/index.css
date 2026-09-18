@@ -1,36 +1,32 @@
 :root {
-  --bg: #080b10;
-  --header: #080b10;
-  --panel: #0d1117;
-  --panel-2: #171e28;
-  --panel-3: #121821;
-  --border: #242d3a;
-  --border-strong: #33404f;
+  --bg: #0a0d12;
+  --header: #0a0d12;
+  --panel: #0f141b;
+  --panel-2: #12181f;
+  --panel-3: #151c24;
+  --border: #222b36;
+  --border-strong: #2c3742;
   --text: #98a2b3;
-  --text-h: #f4f7fa;
+  --text-h: #f3f6fa;
   --muted: #667085;
 
-  /* Brand orange — kept, but scoped to a single restrained touch (the logo
-     mark) rather than the default color of every interactive/selected
-     element. Selection/interaction now reads as blue; see --primary below. */
-  --accent: #ff7139;
-  --accent-soft: rgba(255, 113, 57, 0.12);
-
-  /* Primary interaction — active controls, selected tabs, primary CTAs. */
-  --primary: #3978f6;
-  --primary-hover: #4b88ff;
-  --primary-soft: #172844;
+  /* Primary interaction — active controls, selected tabs, primary CTAs.
+     Muted slate-teal, not a bright SaaS blue — the brand no longer carries
+     its own accent color; this is the interface's only accent. */
+  --primary: #3e6b73;
+  --primary-hover: #4a7a83;
+  --primary-soft: #1a2b30;
 
   /* Computer-vision / tracking data — bounding boxes, skeletons, zones. */
   --track: #22b8cf;
   --track-soft: rgba(34, 184, 207, 0.12);
 
-  --warn: #f04438;
-  --warn-soft: rgba(240, 68, 56, 0.12);
-  --amber: #f5a524;
-  --amber-soft: rgba(245, 165, 36, 0.12);
-  --good: #32d583;
-  --good-soft: rgba(50, 213, 131, 0.12);
+  --warn: #d05c45;
+  --warn-soft: rgba(208, 92, 69, 0.12);
+  --amber: #c58b2a;
+  --amber-soft: rgba(197, 139, 42, 0.12);
+  --good: #2f8f5b;
+  --good-soft: rgba(47, 143, 91, 0.12);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);

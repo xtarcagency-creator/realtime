@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Users,
-  Gauge,
   MapPinArea,
   ListBullets,
   PencilSimple,
@@ -96,7 +94,6 @@ export default function Dashboard({
     <aside className="dashboard">
       <Section
         title="Live Monitoring"
-        icon={<Users size={12} weight="bold" />}
         collapsed={collapsed.live}
         onToggle={() => toggle('live')}
       >
@@ -125,7 +122,6 @@ export default function Dashboard({
 
       <Section
         title="Detection Model"
-        icon={<Gauge size={12} weight="bold" />}
         collapsed={collapsed.detection}
         onToggle={() => toggle('detection')}
       >
@@ -152,7 +148,6 @@ export default function Dashboard({
 
       <Section
         title="Detection Zones"
-        icon={<MapPinArea size={12} weight="bold" />}
         collapsed={collapsed.zones}
         onToggle={() => toggle('zones')}
       >
@@ -232,7 +227,6 @@ export default function Dashboard({
 
       <Section
         title="Tracked People"
-        icon={<UsersThree size={12} weight="bold" />}
         collapsed={collapsed.people}
         onToggle={() => toggle('people')}
       >
@@ -259,7 +253,6 @@ export default function Dashboard({
 
       <Section
         title="Activity"
-        icon={<ListBullets size={12} weight="bold" />}
         collapsed={collapsed.events}
         onToggle={() => toggle('events')}
         grow
@@ -294,21 +287,17 @@ export default function Dashboard({
 
 interface SectionProps {
   title: string
-  icon: ReactNode
   collapsed: boolean
   onToggle: () => void
   grow?: boolean
   children: ReactNode
 }
 
-function Section({ title, icon, collapsed, onToggle, grow, children }: SectionProps) {
+function Section({ title, collapsed, onToggle, grow, children }: SectionProps) {
   return (
     <div className={grow ? 'panel panel-grow' : 'panel'}>
       <button className="panel-header" onClick={onToggle} aria-expanded={!collapsed}>
-        <span className="panel-title">
-          <span className="icon-badge">{icon}</span>
-          {title}
-        </span>
+        <span className="panel-title">{title}</span>
         <CaretDown size={11} weight="bold" className={collapsed ? 'panel-chevron collapsed' : 'panel-chevron'} />
       </button>
       {!collapsed && <div className="panel-body">{children}</div>}
