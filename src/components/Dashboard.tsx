@@ -36,6 +36,13 @@ function formatDwell(sec: number): string {
   return `${m}m ${s}s`
 }
 
+function currentZoneInfo(p: TrackedPerson, zones: Zone[]): { label: string; dwell: number } | null {
+  const entry = Object.entries(p.zoneDwell).find(([, dwell]) => dwell > 0)
+  if (!entry) return null
+  const [zoneId, dwell] = entry
+  return { label: zones.find((z) => z.id === zoneId)?.label ?? 'Zone', dwell }
+}
+
 interface Props {
   people: TrackedPerson[]
   events: ActivityEvent[]
@@ -88,7 +95,7 @@ export default function Dashboard({
   return (
     <aside className="dashboard">
       <Section
-        title="Live"
+        title="Live Monitoring"
         icon={<Users size={12} weight="bold" />}
         collapsed={collapsed.live}
         onToggle={() => toggle('live')}
@@ -117,7 +124,7 @@ export default function Dashboard({
       </Section>
 
       <Section
-        title="Detection"
+        title="Detection Model"
         icon={<Gauge size={12} weight="bold" />}
         collapsed={collapsed.detection}
         onToggle={() => toggle('detection')}
@@ -144,7 +151,7 @@ export default function Dashboard({
       </Section>
 
       <Section
-        title="Zones"
+        title="Detection Zones"
         icon={<MapPinArea size={12} weight="bold" />}
         collapsed={collapsed.zones}
         onToggle={() => toggle('zones')}
@@ -224,7 +231,7 @@ export default function Dashboard({
       </Section>
 
       <Section
-        title="People"
+        title="Tracked People"
         icon={<UsersThree size={12} weight="bold" />}
         collapsed={collapsed.people}
         onToggle={() => toggle('people')}
@@ -236,18 +243,22 @@ export default function Dashboard({
           </div>
         )}
         <ul className="people-list">
-          {people.map((p) => (
-            <li key={p.id} className={`activity-${p.activity}`}>
-              <span className="activity-dot" style={{ background: ACTIVITY_COLORS[p.activity] }} />
-              <span className="pill">#{p.id}</span>
-              <span className="activity-label">{p.activity}</span>
-            </li>
-          ))}
+          {people.map((p) => {
+            const zoneInfo = currentZoneInfo(p, zones)
+            return (
+              <li key={p.id} className={`activity-${p.activity}`}>
+                <span className="activity-dot" style={{ background: ACTIVITY_COLORS[p.activity] }} />
+                <span className="pill">#{p.id}</span>
+                <span className="person-zone">{zoneInfo ? zoneInfo.label : 'No zone'}</span>
+                {zoneInfo && <span className="person-dwell">{formatDwell(zoneInfo.dwell)}</span>}
+              </li>
+            )
+          })}
         </ul>
       </Section>
 
       <Section
-        title="Events"
+        title="Activity"
         icon={<ListBullets size={12} weight="bold" />}
         collapsed={collapsed.events}
         onToggle={() => toggle('events')}
@@ -262,7 +273,7 @@ export default function Dashboard({
         {!events.length && (
           <div className="empty-state">
             <ListBullets size={20} weight="light" />
-            <span>Events (lingering, loitering) appear here.</span>
+            <span>Zone entries, exits, and loitering appear here.</span>
           </div>
         )}
         <ul className="event-list">

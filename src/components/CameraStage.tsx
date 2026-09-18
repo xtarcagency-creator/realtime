@@ -73,6 +73,8 @@ interface Props {
   onPeopleUpdate: (people: TrackedPerson[]) => void
   onEvent: (event: ActivityEvent) => void
   onFps: (fps: number) => void
+  fps: number
+  peopleCount: number
   drawMode: boolean
   quality: DetectionQuality
   alertPulse: number
@@ -89,6 +91,8 @@ export default function CameraStage({
   onPeopleUpdate,
   onEvent,
   onFps,
+  fps,
+  peopleCount,
   drawMode,
   quality,
   alertPulse,
@@ -116,6 +120,7 @@ export default function CameraStage({
   const [isDragOver, setIsDragOver] = useState(false)
   const [retryTick, setRetryTick] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [resolution, setResolution] = useState<{ w: number; h: number } | null>(null)
 
   useEffect(() => {
     const handleChange = () => setIsFullscreen(document.fullscreenElement === stageFrameRef.current)
@@ -195,6 +200,7 @@ export default function CameraStage({
         canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
         onPeopleUpdate([])
         onFps(0)
+        setResolution(null)
         return
       }
 
@@ -246,6 +252,7 @@ export default function CameraStage({
         return
       }
       if (stopped) return
+      setResolution({ w: video.videoWidth, h: video.videoHeight })
 
       const ctx = canvas.getContext('2d')!
       const cover = computeCoverTransform(video.videoWidth, video.videoHeight, CANVAS_W, CANVAS_H)
@@ -505,9 +512,9 @@ export default function CameraStage({
         for (const zone of zonesRef.current) {
           if (zone.points.length < MIN_ZONE_POINTS) continue
           const occupied = Array.from(peopleRef.current.values()).some((p) => (p.zoneDwell[zone.id] ?? 0) > 0)
-          const zoneColor = occupied ? '#e0454a' : '#ff7a30'
+          const zoneColor = occupied ? '#f5a524' : '#22b8cf'
           ctx.strokeStyle = zoneColor
-          ctx.fillStyle = occupied ? 'rgba(242,97,97,0.12)' : 'rgba(79,140,255,0.1)'
+          ctx.fillStyle = occupied ? 'rgba(245,165,36,0.12)' : 'rgba(34,184,207,0.1)'
           ctx.lineWidth = 3 * DRAW_SCALE
           ctx.beginPath()
           zone.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
@@ -564,6 +571,7 @@ export default function CameraStage({
       detachPlaybackListeners?.()
       stream?.getTracks().forEach((t) => t.stop())
       if (objectUrl) URL.revokeObjectURL(objectUrl)
+      setResolution(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -744,6 +752,23 @@ export default function CameraStage({
             Live
           </div>
         )}
+        {running && !status && (
+          <div className="hud-stats">
+            <span>{fps} FPS</span>
+            <span className="hud-sep" />
+            <span>
+              {peopleCount} tracked
+            </span>
+            {resolution && (
+              <>
+                <span className="hud-sep" />
+                <span>
+                  {resolution.w}×{resolution.h}
+                </span>
+              </>
+            )}
+          </div>
+        )}
         {inspecting && (
           <div className="live-badge">
             <CircleNotch size={12} weight="bold" className="spin" />
@@ -755,12 +780,12 @@ export default function CameraStage({
             <polyline
               points={draftLine.map((p) => `${p.x},${p.y}`).join(' ')}
               fill="none"
-              stroke="#ff7a30"
+              stroke="#22b8cf"
               strokeWidth={3 * DRAW_SCALE}
               strokeDasharray={`${8 * DRAW_SCALE} ${6 * DRAW_SCALE}`}
             />
             {draftPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#3fb87f' : '#ff7a30'} />
+              <circle key={i} cx={p.x} cy={p.y} r={7 * DRAW_SCALE} fill={i === 0 ? '#32d583' : '#22b8cf'} />
             ))}
           </svg>
         )}

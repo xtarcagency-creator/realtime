@@ -15,7 +15,7 @@ import './Landing.css'
 
 const REPO_URL = 'https://github.com/xtarcagency-creator/realtime'
 
-const TRUST_ROW = ['WebGL', 'WebAssembly', 'On-device processing', 'No video uploads']
+const TRUST_ROW = ['WebGL', 'WebAssembly', 'Local inference', 'No video uploads']
 
 const FEATURES = [
   {
@@ -62,9 +62,9 @@ export default function Landing() {
               <GithubLogo size={15} weight="bold" />
               <span className="nav-link-word">Source</span>
             </a>
-            <Link className="btn-cta" to="/app">
+            <Link className="btn-cta btn-cta-sm" to="/app">
               Launch Analyzer
-              <ArrowRight size={13} weight="bold" />
+              <ArrowRight size={12} weight="bold" />
             </Link>
           </div>
         </div>
@@ -78,13 +78,14 @@ export default function Landing() {
           </Reveal>
           <Reveal delay={60}>
             <h1>
-              Real-time human activity intelligence, <span className="accent-word">directly in your browser</span>.
+              Understand human activity.
+              <br />
+              <span className="accent-word">In real time.</span>
             </h1>
           </Reveal>
           <Reveal delay={120}>
             <p className="hero-sub">
-              Track multiple people, analyze pose, define zones, and detect loitering in real time without sending
-              video to a server.
+              Multi-person pose tracking, zone monitoring and activity detection processed directly in your browser.
             </p>
           </Reveal>
           <Reveal delay={180} className="hero-actions">
@@ -176,14 +177,14 @@ export default function Landing() {
                     </div>
                   </div>
                   <div className="demo-mini">
-                    <span className="demo-mini-title">Zones</span>
+                    <span className="demo-mini-title">Detection Zones</span>
                     <div className="demo-mini-row">
                       <span className="demo-dot demo-dot-warn" />
                       Zone A · 14s
                     </div>
                   </div>
                   <div className="demo-mini">
-                    <span className="demo-mini-title">Events</span>
+                    <span className="demo-mini-title">Activity</span>
                     <div className="demo-mini-row">
                       <span className="demo-dot demo-dot-warn" />
                       Person #1 entered Zone A

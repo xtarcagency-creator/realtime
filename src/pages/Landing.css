@@ -8,7 +8,7 @@
 }
 
 .accent-word {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 /* ---- reveal-on-scroll ---- */
@@ -101,14 +101,14 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--accent);
-  color: #16110b;
+  background: var(--primary);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
   padding: 9px 15px;
   border-radius: var(--radius-sm);
   text-decoration: none;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--primary);
   transition: filter 160ms ease, transform 80ms ease;
 }
 
@@ -118,6 +118,11 @@
 
 .btn-cta:active {
   transform: translateY(1px);
+}
+
+.btn-cta-sm {
+  padding: 7px 12px;
+  font-size: 12.5px;
 }
 
 .btn-ghost {
@@ -145,7 +150,7 @@
 .hero {
   max-width: 760px;
   margin: 0 auto;
-  padding: 96px 24px 48px;
+  padding: 64px 24px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -160,28 +165,28 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 24px;
+  color: var(--primary);
+  margin-bottom: 18px;
 }
 
 .eyebrow-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--primary);
 }
 
 .hero h1 {
-  margin: 0 0 20px;
-  font-size: clamp(30px, 4.3vw, 45px);
-  line-height: 1.18;
+  margin: 0 0 14px;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.16;
   letter-spacing: -0.02em;
   font-weight: 700;
   color: var(--text-h);
 }
 
 .hero-sub {
-  margin: 0 0 32px;
+  margin: 0 0 24px;
   font-size: 16px;
   line-height: 1.6;
   color: var(--text);
@@ -200,7 +205,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
-  margin-top: 36px;
+  margin-top: 26px;
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 11px;
   color: var(--muted);
@@ -222,12 +227,29 @@
 
 /* ---- hero product visual ---- */
 .preview {
+  position: relative;
   max-width: 1240px;
   margin: 0 auto;
   padding: 0 32px 128px;
 }
 
+.preview::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  width: min(900px, 90%);
+  height: 320px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--primary) 28%, transparent), transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .hero-frame {
+  position: relative;
+  z-index: 1;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--panel);
@@ -322,12 +344,12 @@
 
 .demo-box {
   position: absolute;
-  border: 1.5px solid #60a5fa;
+  border: 1.5px solid #22b8cf;
   border-radius: 3px;
 }
 
 .demo-box-muted {
-  border-color: #94a3b8;
+  border-color: #7d8a9c;
 }
 
 .demo-box-label {
@@ -337,15 +359,15 @@
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 8px;
   font-weight: 700;
-  color: #0a0a0a;
-  background: #60a5fa;
+  color: #061014;
+  background: #22b8cf;
   padding: 1px 4px;
   border-radius: 2px 2px 0 0;
   white-space: nowrap;
 }
 
 .demo-box-muted .demo-box-label {
-  background: #94a3b8;
+  background: #7d8a9c;
 }
 
 .demo-skeleton {
@@ -353,14 +375,14 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  stroke: #60a5fa;
+  stroke: #22b8cf;
   stroke-width: 1.6;
   fill: none;
   opacity: 0.9;
 }
 
 .demo-skeleton circle {
-  fill: #60a5fa;
+  fill: #22b8cf;
   stroke: none;
 }
 
@@ -373,8 +395,8 @@
 }
 
 .demo-zone polygon {
-  fill: rgba(224, 69, 74, 0.14);
-  stroke: #e0454a;
+  fill: rgba(245, 165, 36, 0.14);
+  stroke: #f5a524;
   stroke-width: 1.2;
 }
 
@@ -383,7 +405,7 @@
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 8px;
   font-weight: 600;
-  color: #e0454a;
+  color: #f5a524;
   background: rgba(9, 10, 11, 0.75);
   padding: 1px 5px;
   border-radius: 3px;
@@ -423,7 +445,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #e0454a;
+  background: #f5a524;
   flex-shrink: 0;
 }
 
@@ -505,11 +527,11 @@
 }
 
 .demo-dot-warn {
-  background: #e0454a;
+  background: #f5a524;
 }
 
 .demo-dot-info {
-  background: #e0b93a;
+  background: #667085;
 }
 
 /* ---- shared section title ---- */
@@ -550,7 +572,7 @@
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--primary);
   margin-bottom: 16px;
 }
 
@@ -596,7 +618,7 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .workflow-n {

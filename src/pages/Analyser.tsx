@@ -149,6 +149,8 @@ function Analyser() {
           onPeopleUpdate={setPeople}
           onEvent={handleEvent}
           onFps={setFps}
+          fps={fps}
+          peopleCount={people.length}
           drawMode={drawMode}
           quality={quality}
           alertPulse={alertPulse}
